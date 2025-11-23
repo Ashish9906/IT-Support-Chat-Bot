@@ -154,7 +154,8 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
     if (currentEngineer) {
         textBlock = `*Current Shift (${nowIST.toFormat('cccc, hh:mm a')} IST)*\n\n*Name:* ${currentEngineer.name}\n*Email:* ${currentEngineer.email}\n*Shift:* ${currentEngineer.start} - ${currentEngineer.end}`;
     } else {
-        textBlock = `*Current Shift (${nowIST.toFormat('cccc, hh:mm a')} IST)*\n\nNo engineer is currently scheduled on shift. Please leave a message for the next shift.`;
+        // Fallback to Sinbad if no specific engineer is on shift
+        textBlock = `*Current Shift (${nowIST.toFormat('cccc, hh:mm a')} IST)*\n\n*Name:* Sinbad\n*Email:* sgellizeau@greatlakes.services\n*Shift:* On-Call (Fallback)`;
     }
 
     const viewPayload = {
