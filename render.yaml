@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: it-support-bot
+    env: node
+    buildCommand: npm install
+    startCommand: node app.js
+    envVars:
+      - key: SLACK_BOT_TOKEN
+        sync: false
+      - key: SLACK_SIGNING_SECRET
+        sync: false
