@@ -211,13 +211,19 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
                 }
             });
 
-            // Shift Details (No Email, No Emojis)
+            // Details: Email (Code Block) and Shift (Plain Text)
             blocks.push({
                 type: 'section',
-                text: {
-                    type: 'mrkdwn',
-                    text: `Shift: ${eng.start} - ${eng.end} IST`
-                }
+                fields: [
+                    {
+                        type: 'mrkdwn',
+                        text: `\`${eng.email}\`` // Email in code block for "Box" look
+                    },
+                    {
+                        type: 'mrkdwn',
+                        text: `Shift: ${eng.start} - ${eng.end} IST`
+                    }
+                ]
             });
 
             blocks.push({ type: 'divider' });
