@@ -2,7 +2,7 @@ const http = require('http');
 const crypto = require('crypto');
 
 // Configuration
-const PORT = 3011;
+const PORT = 3012;
 const SIGNING_SECRET = 'test-secret'; // Must match what you run the app with
 const TIMESTAMP = Math.floor(Date.now() / 1000);
 

@@ -155,7 +155,7 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
 
     let blocks = [];
 
-    // Header
+    // Header (Matches React Hint)
     blocks.push({
         type: 'header',
         text: {
@@ -165,16 +165,25 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
         }
     });
 
-    // Sub-header context
+    // Context (Matches React Hint "Multifactor LLP" under header)
     blocks.push({
         type: 'context',
         elements: [
             {
                 type: 'plain_text',
-                text: 'Active Support Staff',
+                text: 'Multifactor LLP',
                 emoji: true
             }
         ]
+    });
+
+    // Section Title (Matches React Hint "Active Support Staff")
+    blocks.push({
+        type: 'section',
+        text: {
+            type: 'mrkdwn',
+            text: "*Active Support Staff*"
+        }
     });
 
     blocks.push({ type: 'divider' });
