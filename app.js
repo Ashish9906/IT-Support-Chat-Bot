@@ -65,14 +65,14 @@ app.command('/it-help', async ({ ack, body, client }) => {
             callback_id: 'it_support_modal',
             title: {
                 type: 'plain_text',
-                text: 'IT Support'
+                text: 'IT Support Hub'
             },
             blocks: [
                 {
                     type: 'header',
                     text: {
                         type: 'plain_text',
-                        text: 'IT Support Bot by Multifactor LLP',
+                        text: '🏢 IT Support Hub',
                         emoji: true
                     }
                 },
@@ -80,7 +80,7 @@ app.command('/it-help', async ({ ack, body, client }) => {
                     type: 'section',
                     text: {
                         type: 'mrkdwn',
-                        text: "Hello! I am your automated IT assistant. How can I assist you today?"
+                        text: "*Welcome to the Multifactor LLP IT Support Portal.*\nWe are here to help you with your technical issues."
                     }
                 },
                 {
@@ -90,7 +90,7 @@ app.command('/it-help', async ({ ack, body, client }) => {
                     type: 'section',
                     text: {
                         type: 'mrkdwn',
-                        text: "*Please select the option below to contact support:*"
+                        text: "👇 *Click below to find the currently available engineer:*"
                     }
                 },
                 {
@@ -100,7 +100,7 @@ app.command('/it-help', async ({ ack, body, client }) => {
                             type: 'button',
                             text: {
                                 type: 'plain_text',
-                                text: '👨‍💻 Contact On-Shift Engineer',
+                                text: '👨‍💻 Find On-Shift Engineer',
                                 emoji: true
                             },
                             action_id: 'on_shift_engineer',
@@ -113,7 +113,7 @@ app.command('/it-help', async ({ ack, body, client }) => {
                     elements: [
                         {
                             type: 'mrkdwn',
-                            text: "Powered by Multifactor LLP AI Services"
+                            text: "⚡ Powered by Multifactor LLP"
                         }
                     ]
                 }
@@ -139,24 +139,103 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
     await ack();
 
     const nowIST = DateTime.now().setZone('Asia/Kolkata');
-    const currentEngineer = schedule.find(eng => isEngineerOnShift(eng, nowIST));
 
-    let engineerName, engineerEmail, engineerShift, statusEmoji, statusText;
+    // FILTER: Get ALL matching engineers instead of just one
+    const activeEngineers = schedule.filter(eng => isEngineerOnShift(eng, nowIST));
 
-    if (currentEngineer) {
-        engineerName = currentEngineer.name;
-        engineerEmail = currentEngineer.email;
-        engineerShift = `${currentEngineer.start} - ${currentEngineer.end} IST`;
-        statusEmoji = "🟢";
-        statusText = "On-Shift";
+    let blocks = [];
+
+    // Header Block
+    blocks.push({
+        type: 'header',
+        text: {
+            type: 'plain_text',
+            text: '👨‍💻 Available Engineers',
+            emoji: true
+        }
+    });
+    blocks.push({ type: 'divider' });
+
+    if (activeEngineers.length > 0) {
+        // Loop through each active engineer and create a card
+        activeEngineers.forEach(eng => {
+            blocks.push({
+                type: 'section',
+                text: {
+                    type: 'mrkdwn',
+                    text: `*${eng.name}*`
+                }
+            });
+            blocks.push({
+                type: 'section',
+                fields: [
+                    {
+                        type: 'mrkdwn',
+                        text: `📧 *Email:*\n${eng.email}`
+                    },
+                    {
+                        type: 'mrkdwn',
+                        text: `⏰ *Shift:*\n${eng.start} - ${eng.end} IST`
+                    }
+                ]
+            });
+            blocks.push({
+                type: 'context',
+                elements: [
+                    {
+                        type: 'plain_text',
+                        text: '🟢 On-Shift',
+                        emoji: true
+                    }
+                ]
+            });
+            blocks.push({ type: 'divider' });
+        });
     } else {
-        // Fallback to Sinbad
-        engineerName = "Sinbad";
-        engineerEmail = "sgellizeau@greatlakes.services";
-        engineerShift = "On-Call (Fallback)";
-        statusEmoji = "🟡";
-        statusText = "Fallback Support";
+        // Fallback to Sinbad if NO engineers are found
+        blocks.push({
+            type: 'section',
+            text: {
+                type: 'mrkdwn',
+                text: `*Sinbad*`
+            }
+        });
+        blocks.push({
+            type: 'section',
+            fields: [
+                {
+                    type: 'mrkdwn',
+                    text: `📧 *Email:*\nsgellizeau@greatlakes.services`
+                },
+                {
+                    type: 'mrkdwn',
+                    text: `⏰ *Shift:*\nOn-Call (Fallback)`
+                }
+            ]
+        });
+        blocks.push({
+            type: 'context',
+            elements: [
+                {
+                    type: 'plain_text',
+                    text: '🟡 Fallback Support',
+                    emoji: true
+                }
+            ]
+        });
+        blocks.push({ type: 'divider' });
     }
+
+    // Footer with Time
+    blocks.push({
+        type: 'context',
+        elements: [
+            {
+                type: 'mrkdwn',
+                text: `🕒 *Current Time:* ${nowIST.toFormat('cccc, hh:mm a')} IST`
+            }
+        ]
+    });
 
     const viewPayload = {
         trigger_id: body.trigger_id,
@@ -166,46 +245,7 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
                 type: 'plain_text',
                 text: 'Engineer Details'
             },
-            blocks: [
-                {
-                    type: 'header',
-                    text: {
-                        type: 'plain_text',
-                        text: engineerName,
-                        emoji: true
-                    }
-                },
-                {
-                    type: 'section',
-                    fields: [
-                        {
-                            type: 'mrkdwn',
-                            text: `*Email:*\n${engineerEmail}`
-                        },
-                        {
-                            type: 'mrkdwn',
-                            text: `*Shift:*\n${engineerShift}`
-                        }
-                    ]
-                },
-                {
-                    type: 'divider'
-                },
-                {
-                    type: 'context',
-                    elements: [
-                        {
-                            type: 'plain_text',
-                            text: `${statusEmoji} Status: ${statusText}`,
-                            emoji: true
-                        },
-                        {
-                            type: 'mrkdwn',
-                            text: `|  *Current Time:* ${nowIST.toFormat('cccc, hh:mm a')} IST`
-                        }
-                    ]
-                }
-            ]
+            blocks: blocks
         }
     };
 
