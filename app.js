@@ -521,10 +521,8 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
         // --- SCENARIO 1: Engineers ARE Available ---
         finalEngineers.forEach(eng => {
             // Name and Status Pill
+            // User Request: Simplify UI. Substitutes should look just like normal available engineers.
             let statusText = '🟢 Available';
-            if (eng.isSubstitute) {
-                statusText = `🔄 Covering (${eng.coveringFor})`;
-            }
 
             blocks.push({
                 type: 'section',
@@ -541,7 +539,7 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
                     },
                     action_id: 'noop_status_' + eng.name.replace(/\s/g, ''), // Unique ID
                     value: 'status',
-                    style: eng.isSubstitute ? 'danger' : 'primary' // Different color for substitute
+                    style: 'primary'
                 }
             });
 
