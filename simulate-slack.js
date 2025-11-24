@@ -2,41 +2,45 @@ const http = require('http');
 const crypto = require('crypto');
 
 // Configuration
-const PORT = 3004;
+const PORT = 3005;
 const SIGNING_SECRET = 'test-secret'; // Must match what you run the app with
 const TIMESTAMP = Math.floor(Date.now() / 1000);
 
-function sendSlackRequest(payload) {
-    const body = new URLSearchParams(payload).toString();
+// Helper to create signature
+function createSignature(body, timestamp) {
+    const sigBasestring = 'v0:' + timestamp + ':' + body;
+    const hmac = crypto.createHmac('sha256', SIGNING_SECRET);
+    hmac.update(sigBasestring);
+    return 'v0=' + hmac.digest('hex');
+}
 
-    // Generate Signature
-    const sigBasestring = `v0:${TIMESTAMP}:${body}`;
-    const signature = 'v0=' + crypto.createHmac('sha256', SIGNING_SECRET)
-        .update(sigBasestring)
-        .digest('hex');
+// Helper to send request
+function sendSlackRequest(path, payload, description) {
+    const body = new URLSearchParams({ payload: JSON.stringify(payload) }).toString();
+    const signature = createSignature(body, TIMESTAMP);
 
     const options = {
         hostname: '127.0.0.1',
         port: PORT,
-        path: '/slack/events',
+        path: path,
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
-            'x-slack-request-timestamp': TIMESTAMP,
-            'x-slack-signature': signature
+            'X-Slack-Request-Timestamp': TIMESTAMP,
+            'X-Slack-Signature': signature
         }
     };
 
     const req = http.request(options, (res) => {
+        console.log(`\n--- ${description} ---`);
         console.log(`STATUS: ${res.statusCode}`);
-        res.setEncoding('utf8');
-        res.on('data', (chunk) => {
-            console.log(`BODY: ${chunk}`);
+        res.on('data', (d) => {
+            process.stdout.write(d);
         });
     });
 
-    req.on('error', (e) => {
-        console.error(`problem with request: ${e.message}`);
+    req.on('error', (error) => {
+        console.error(`problem with request: ${error.message}`);
     });
 
     req.write(body);
@@ -44,8 +48,7 @@ function sendSlackRequest(payload) {
 }
 
 // 1. Simulate Slash Command
-console.log('--- Sending Slash Command /it-help ---');
-sendSlackRequest({
+const slashCommandPayload = {
     token: 'test-token',
     team_id: 'T0001',
     team_domain: 'example',
@@ -57,64 +60,53 @@ sendSlackRequest({
     text: '',
     response_url: 'https://hooks.slack.com/commands/1234/5678',
     trigger_id: 'trigger_1'
-});
+};
 
-// 2. Simulate Button Click (On-Shift Engineer) - Wait a bit
 setTimeout(() => {
-    console.log('\n--- Sending Button Click (On-Shift Engineer) ---');
-    // Interactive payload is sent as a JSON string in the 'payload' form field
-    const interactivePayload = {
-        type: 'block_actions',
-        user: { id: 'U0001', username: 'Steve' },
-        api_app_id: 'A0001',
-        token: 'test-token',
-        container: { type: 'view', view_id: 'V0001' },
-        trigger_id: 'trigger_2',
-        team: { id: 'T0001', domain: 'example' },
-        enterprise: null,
-        is_enterprise_install: false,
-        view: {
-            type: 'modal',
-            callback_id: 'it_support_modal'
-        },
-        actions: [
-            {
-                action_id: 'on_shift_engineer',
-                block_id: 'block_1',
-                text: { type: 'plain_text', text: 'On-Shift Engineer', emoji: true },
-                value: 'click_me_123',
-                type: 'button',
-                action_ts: '1579031234.123456'
-            }
-        ]
-    };
+    sendSlackRequest('/slack/events', slashCommandPayload, 'Sending Slash Command /it-help');
+}, 1000);
 
-    sendSlackRequest({
-        payload: JSON.stringify(interactivePayload)
-    });
-}, 2000);
+// 2. Simulate Button Click (On-Shift Engineer)
+const buttonClickPayload = {
+    type: 'block_actions',
+    user: {
+        id: 'U0001',
+        username: 'Steve',
+        name: 'Steve'
+    },
+    api_app_id: 'A0001',
+    token: 'test-token',
+    container: {
+        type: 'view',
+        view_id: 'V0001'
+    },
+    trigger_id: 'trigger_2',
+    team: {
+        id: 'T0001',
+        domain: 'example'
+    },
+    enterprise: null,
+    is_enterprise_install: false,
+    view: {
+        type: 'modal',
+        callback_id: 'it_support_modal'
+    },
+    actions: [
+        {
+            action_id: 'on_shift_engineer',
+            block_id: 'block_1',
+            text: {
+                type: 'plain_text',
+                text: 'On-Shift Engineer',
+                emoji: true
+            },
+            value: 'click_me_123',
+            type: 'button',
+            action_ts: '1600000000.000000'
+        }
+    ]
+};
 
-// 3. Simulate Button Click (Bot Help) - Wait a bit more
 setTimeout(() => {
-    console.log('\n--- Sending Button Click (Bot Help) ---');
-    const interactivePayload = {
-        type: 'block_actions',
-        user: { id: 'U0001', username: 'Steve' },
-        api_app_id: 'A0001',
-        token: 'test-token',
-        container: { type: 'view', view_id: 'V0001' },
-        trigger_id: 'trigger_3',
-        team: { id: 'T0001', domain: 'example' },
-        view: { type: 'modal', callback_id: 'it_support_modal' },
-        actions: [
-            {
-                action_id: 'bot_help',
-                type: 'button'
-            }
-        ]
-    };
-
-    sendSlackRequest({
-        payload: JSON.stringify(interactivePayload)
-    });
-}, 4000);
+    sendSlackRequest('/slack/events', buttonClickPayload, 'Sending Button Click (On-Shift Engineer)');
+}, 3000);

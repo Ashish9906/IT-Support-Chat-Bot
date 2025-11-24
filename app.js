@@ -90,7 +90,7 @@ app.command('/it-help', async ({ ack, body, client }) => {
                     type: 'section',
                     text: {
                         type: 'mrkdwn',
-                        text: "*Choose an option below:*"
+                        text: "*Please select the option below to contact support:*"
                     }
                 },
                 {
@@ -100,20 +100,11 @@ app.command('/it-help', async ({ ack, body, client }) => {
                             type: 'button',
                             text: {
                                 type: 'plain_text',
-                                text: '🤖 Get AI Assistance',
-                                emoji: true
-                            },
-                            action_id: 'bot_help',
-                            style: 'primary'
-                        },
-                        {
-                            type: 'button',
-                            text: {
-                                type: 'plain_text',
                                 text: '👨‍💻 Contact On-Shift Engineer',
                                 emoji: true
                             },
-                            action_id: 'on_shift_engineer'
+                            action_id: 'on_shift_engineer',
+                            style: 'primary'
                         }
                     ]
                 },
@@ -150,12 +141,21 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
     const nowIST = DateTime.now().setZone('Asia/Kolkata');
     const currentEngineer = schedule.find(eng => isEngineerOnShift(eng, nowIST));
 
-    let textBlock;
+    let engineerName, engineerEmail, engineerShift, statusEmoji, statusText;
+
     if (currentEngineer) {
-        textBlock = `*Current Shift (${nowIST.toFormat('cccc, hh:mm a')} IST)*\n\n*Name:* ${currentEngineer.name}\n*Email:* ${currentEngineer.email}\n*Shift:* ${currentEngineer.start} - ${currentEngineer.end}`;
+        engineerName = currentEngineer.name;
+        engineerEmail = currentEngineer.email;
+        engineerShift = `${currentEngineer.start} - ${currentEngineer.end} IST`;
+        statusEmoji = "🟢";
+        statusText = "On-Shift";
     } else {
-        // Fallback to Sinbad if no specific engineer is on shift
-        textBlock = `*Current Shift (${nowIST.toFormat('cccc, hh:mm a')} IST)*\n\n*Name:* Sinbad\n*Email:* sgellizeau@greatlakes.services\n*Shift:* On-Call (Fallback)`;
+        // Fallback to Sinbad
+        engineerName = "Sinbad";
+        engineerEmail = "sgellizeau@greatlakes.services";
+        engineerShift = "On-Call (Fallback)";
+        statusEmoji = "🟡";
+        statusText = "Fallback Support";
     }
 
     const viewPayload = {
@@ -164,15 +164,46 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
             type: 'modal',
             title: {
                 type: 'plain_text',
-                text: 'On-Shift Engineer'
+                text: 'Engineer Details'
             },
             blocks: [
                 {
-                    type: 'section',
+                    type: 'header',
                     text: {
-                        type: 'mrkdwn',
-                        text: textBlock
+                        type: 'plain_text',
+                        text: engineerName,
+                        emoji: true
                     }
+                },
+                {
+                    type: 'section',
+                    fields: [
+                        {
+                            type: 'mrkdwn',
+                            text: `*Email:*\n${engineerEmail}`
+                        },
+                        {
+                            type: 'mrkdwn',
+                            text: `*Shift:*\n${engineerShift}`
+                        }
+                    ]
+                },
+                {
+                    type: 'divider'
+                },
+                {
+                    type: 'context',
+                    elements: [
+                        {
+                            type: 'plain_text',
+                            text: `${statusEmoji} Status: ${statusText}`,
+                            emoji: true
+                        },
+                        {
+                            type: 'mrkdwn',
+                            text: `|  *Current Time:* ${nowIST.toFormat('cccc, hh:mm a')} IST`
+                        }
+                    ]
                 }
             ]
         }
@@ -180,43 +211,6 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
 
     if (process.env.TEST_MODE === 'true') {
         console.log('--- TEST MODE: Pushing View (On-Shift) ---');
-        console.log(JSON.stringify(viewPayload.view, null, 2));
-        return;
-    }
-
-    try {
-        await client.views.push(viewPayload);
-    } catch (error) {
-        console.error(error);
-    }
-});
-
-// Action Handler: Get Help From Bot
-app.action('bot_help', async ({ ack, body, client }) => {
-    await ack();
-
-    const viewPayload = {
-        trigger_id: body.trigger_id,
-        view: {
-            type: 'modal',
-            title: {
-                type: 'plain_text',
-                text: 'AI Assistance'
-            },
-            blocks: [
-                {
-                    type: 'section',
-                    text: {
-                        type: 'mrkdwn',
-                        text: "I am happy to help you! Please elaborate on the issue you are facing, and I will do my best to resolve it."
-                    }
-                }
-            ]
-        }
-    };
-
-    if (process.env.TEST_MODE === 'true') {
-        console.log('--- TEST MODE: Pushing View (Bot Help) ---');
         console.log(JSON.stringify(viewPayload.view, null, 2));
         return;
     }
