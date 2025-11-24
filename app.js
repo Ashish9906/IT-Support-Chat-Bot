@@ -72,7 +72,7 @@ app.command('/it-help', async ({ ack, body, client }) => {
                     type: 'header',
                     text: {
                         type: 'plain_text',
-                        text: '🏢 IT Support Hub',
+                        text: 'IT Support Hub',
                         emoji: true
                     }
                 },
@@ -100,7 +100,7 @@ app.command('/it-help', async ({ ack, body, client }) => {
                     type: 'section',
                     text: {
                         type: 'mrkdwn',
-                        text: "🎧 *Click below to find the currently available engineer:*"
+                        text: "Click below to find the currently available engineer:"
                     }
                 },
                 {
@@ -123,7 +123,7 @@ app.command('/it-help', async ({ ack, body, client }) => {
                     elements: [
                         {
                             type: 'mrkdwn',
-                            text: "⚡ Powered by Multifactor LLP"
+                            text: "Powered by Multifactor LLP"
                         }
                     ]
                 }
@@ -182,7 +182,7 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
     if (activeEngineers.length > 0) {
         // --- SCENARIO 1: Engineers ARE Available ---
         activeEngineers.forEach(eng => {
-            // Name and Status Pill (Simulated with text)
+            // Name and Status Pill
             blocks.push({
                 type: 'section',
                 text: {
@@ -196,25 +196,19 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
                         text: '🟢 Available',
                         emoji: true
                     },
-                    action_id: 'noop_status_' + eng.email, // No-op action
+                    action_id: 'noop_status_' + eng.name.replace(/\s/g, ''), // Unique ID
                     value: 'status',
-                    style: 'primary' // Makes it green-ish (closest to a pill)
+                    style: 'primary'
                 }
             });
 
-            // Details Grid
+            // Shift Details (No Email, No Emojis)
             blocks.push({
                 type: 'section',
-                fields: [
-                    {
-                        type: 'mrkdwn',
-                        text: `📧 *Email*\n\`${eng.email}\``
-                    },
-                    {
-                        type: 'mrkdwn',
-                        text: `🕒 *Shift*\n${eng.start} - ${eng.end} IST`
-                    }
-                ]
+                text: {
+                    type: 'mrkdwn',
+                    text: `Shift: ${eng.start} - ${eng.end} IST`
+                }
             });
 
             blocks.push({ type: 'divider' });
@@ -237,7 +231,6 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
                 },
                 action_id: 'noop_status_offline',
                 value: 'status'
-                // Default style (grey/white)
             }
         });
 
@@ -245,7 +238,7 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
             type: 'section',
             text: {
                 type: 'mrkdwn',
-                text: "Our support team is currently off-shift.\nStandard support hours are *Monday to Friday*."
+                text: "Our support team is currently off-shift.\nStandard support hours are Monday to Friday."
             }
         });
 
@@ -253,7 +246,7 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
             type: 'section',
             text: {
                 type: 'mrkdwn',
-                text: "👉 *For urgent technical issues, please raise a ticket on the Jira Service Desk.*"
+                text: "For urgent technical issues, please raise a ticket on the Jira Service Desk."
             }
         });
 
@@ -266,7 +259,7 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
         elements: [
             {
                 type: 'mrkdwn',
-                text: `🕒 Current Time: ${nowIST.toFormat('cccc, hh:mm a')} IST`
+                text: `Current Time: ${nowIST.toFormat('cccc, hh:mm a')} IST`
             }
         ]
     });
