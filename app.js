@@ -25,14 +25,6 @@ const app = new App(appConfig);
 
 console.log(`TEST_MODE is: '${process.env.TEST_MODE}'`);
 
-// --- IN-MEMORY STORAGE ---
-const stats = {
-    total_hits: 0,
-    engineer_counts: {}
-};
-
-const swapRegistry = {}; // Format: { "Original Name": "New Name" }
-
 // Helper: Check if current time is within a shift range
 function isEngineerOnShift(engineer, nowIST) {
     const nowTime = nowIST.toFormat('HH:mm');
@@ -154,39 +146,16 @@ app.command('/it-help', async ({ ack, body, client }) => {
     }
 });
 
+// --- ACTIONS ---
+
 // Action Handler: On-Shift Engineer
 app.action('on_shift_engineer', async ({ ack, body, client }) => {
     await ack();
 
-    // 1. Increment Stats
-    stats.total_hits += 1;
-
     const nowIST = DateTime.now().setZone('Asia/Kolkata');
 
-    // 2. Get Base Active Engineers
-    let activeEngineers = schedule.filter(eng => isEngineerOnShift(eng, nowIST));
-
-    // 3. Apply Swaps
-    activeEngineers = activeEngineers.map(eng => {
-        if (swapRegistry[eng.name]) {
-            const newName = swapRegistry[eng.name];
-            const newEngObj = schedule.find(e => e.name === newName);
-            if (newEngObj) {
-                // Return the new engineer object, but maybe keep the shift time of the original?
-                // User said "Atul ki jagah Pavan", usually implies Pavan covers that slot.
-                // Let's use Pavan's full details if available, but if Pavan has a different shift time in DB, it might be confusing.
-                // For now, we replace the entire object with Pavan's object from DB.
-                // If Pavan is NOT in DB (unlikely based on findFullName check), we'd fallback.
-                return newEngObj;
-            }
-        }
-        return eng;
-    });
-
-    // 4. Update Stats for specific engineers
-    activeEngineers.forEach(eng => {
-        stats.engineer_counts[eng.name] = (stats.engineer_counts[eng.name] || 0) + 1;
-    });
+    // Get Active Engineers
+    const activeEngineers = schedule.filter(eng => isEngineerOnShift(eng, nowIST));
 
     let blocks = [];
 
