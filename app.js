@@ -25,6 +25,14 @@ const app = new App(appConfig);
 
 console.log(`TEST_MODE is: '${process.env.TEST_MODE}'`);
 
+// --- IN-MEMORY STORAGE ---
+const stats = {
+    total_hits: 0,
+    engineer_counts: {}
+};
+
+const swapRegistry = {}; // Format: { "Original Name": "New Name" }
+
 // Helper: Check if current time is within a shift range
 function isEngineerOnShift(engineer, nowIST) {
     const nowTime = nowIST.toFormat('HH:mm');
@@ -54,7 +62,9 @@ function isEngineerOnShift(engineer, nowIST) {
     return false;
 }
 
-// Slash Command Handler to open the modal
+// --- COMMANDS ---
+
+// 1. Main Help Command
 app.command('/it-help', async ({ ack, body, client }) => {
     await ack();
 
@@ -144,18 +154,133 @@ app.command('/it-help', async ({ ack, body, client }) => {
     }
 });
 
+// 2. Analytics Command (Admin)
+app.command('/it-stats', async ({ ack, body, client }) => {
+    await ack();
+
+    let statsText = `*📊 IT Support Bot Statistics*\n\n*Total Requests Today:* ${stats.total_hits}\n\n*Engineer Search Counts:*`;
+
+    for (const [name, count] of Object.entries(stats.engineer_counts)) {
+        statsText += `\n- ${name}: ${count}`;
+    }
+
+    if (Object.keys(stats.engineer_counts).length === 0) {
+        statsText += "\n(No data yet)";
+    }
+
+    if (process.env.TEST_MODE === 'true') {
+        console.log('--- TEST MODE: Stats Command ---');
+        console.log(statsText);
+        return;
+    }
+
+    // Ephemeral message (only visible to admin)
+    try {
+        await client.chat.postEphemeral({
+            channel: body.channel_id,
+            user: body.user_id,
+            text: statsText
+        });
+    } catch (error) {
+        console.error(error);
+    }
+});
+
+// 3. Swap Command (Admin)
+app.command('/it-swap', async ({ ack, body, client }) => {
+    await ack();
+
+    const args = body.text.trim().split(/\s+/); // Split by space
+    // Expecting: /it-swap @Atul @Pavan OR /it-swap Atul Pavan (Simplified)
+
+    // Clean up names (remove @ if present)
+    const cleanName = (name) => name ? name.replace(/^@/, '') : '';
+
+    if (args.length < 2) {
+        const msg = "⚠️ Usage: `/it-swap [Original Name] [New Name]`\nExample: `/it-swap Atul Pavan`";
+        if (process.env.TEST_MODE === 'true') console.log(msg);
+        else await client.chat.postEphemeral({ channel: body.channel_id, user: body.user_id, text: msg });
+        return;
+    }
+
+    // Simple fuzzy match logic could go here, but for now we assume partial first name match works if unique
+    // For robustness in this MVP, let's try to find full names in schedule that START with the arg
+    const findFullName = (partial) => {
+        const match = schedule.find(e => e.name.toLowerCase().includes(partial.toLowerCase()));
+        return match ? match.name : null;
+    };
+
+    const originalPartial = cleanName(args[0]);
+    const newPartial = cleanName(args[1]);
+
+    const originalFull = findFullName(originalPartial);
+    const newFull = findFullName(newPartial);
+
+    if (!originalFull || !newFull) {
+        const msg = `⚠️ Could not find engineers matching "${originalPartial}" or "${newPartial}" in the schedule.`;
+        if (process.env.TEST_MODE === 'true') console.log(msg);
+        else await client.chat.postEphemeral({ channel: body.channel_id, user: body.user_id, text: msg });
+        return;
+    }
+
+    // Register Swap
+    swapRegistry[originalFull] = newFull;
+
+    const successMsg = `✅ **Shift Swap Active!**\n\n**${originalFull}** is now replaced by **${newFull}** for today.`;
+
+    if (process.env.TEST_MODE === 'true') {
+        console.log('--- TEST MODE: Swap Command ---');
+        console.log(successMsg);
+        console.log('Registry:', swapRegistry);
+    } else {
+        await client.chat.postEphemeral({
+            channel: body.channel_id,
+            user: body.user_id,
+            text: successMsg
+        });
+    }
+});
+
+
+// --- ACTIONS ---
+
 // Action Handler: On-Shift Engineer
 app.action('on_shift_engineer', async ({ ack, body, client }) => {
     await ack();
 
+    // 1. Increment Stats
+    stats.total_hits += 1;
+
     const nowIST = DateTime.now().setZone('Asia/Kolkata');
 
-    // FILTER: Get ALL matching engineers
-    const activeEngineers = schedule.filter(eng => isEngineerOnShift(eng, nowIST));
+    // 2. Get Base Active Engineers
+    let activeEngineers = schedule.filter(eng => isEngineerOnShift(eng, nowIST));
+
+    // 3. Apply Swaps
+    activeEngineers = activeEngineers.map(eng => {
+        if (swapRegistry[eng.name]) {
+            const newName = swapRegistry[eng.name];
+            const newEngObj = schedule.find(e => e.name === newName);
+            if (newEngObj) {
+                // Return the new engineer object, but maybe keep the shift time of the original?
+                // User said "Atul ki jagah Pavan", usually implies Pavan covers that slot.
+                // Let's use Pavan's full details if available, but if Pavan has a different shift time in DB, it might be confusing.
+                // For now, we replace the entire object with Pavan's object from DB.
+                // If Pavan is NOT in DB (unlikely based on findFullName check), we'd fallback.
+                return newEngObj;
+            }
+        }
+        return eng;
+    });
+
+    // 4. Update Stats for specific engineers
+    activeEngineers.forEach(eng => {
+        stats.engineer_counts[eng.name] = (stats.engineer_counts[eng.name] || 0) + 1;
+    });
 
     let blocks = [];
 
-    // Header (Matches React Hint)
+    // Header
     blocks.push({
         type: 'header',
         text: {
@@ -165,7 +290,7 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
         }
     });
 
-    // Context (Matches React Hint "Multifactor LLP" under header)
+    // Context
     blocks.push({
         type: 'context',
         elements: [
@@ -177,7 +302,7 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
         ]
     });
 
-    // Section Title (Matches React Hint "Active Support Staff")
+    // Section Title
     blocks.push({
         type: 'section',
         text: {
@@ -217,7 +342,7 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
                 fields: [
                     {
                         type: 'mrkdwn',
-                        text: `\`${eng.email}\`` // Email in code block for "Box" look
+                        text: `\`${eng.email}\``
                     },
                     {
                         type: 'mrkdwn',
