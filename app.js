@@ -81,7 +81,7 @@ app.command('/it-help', async ({ ack, body, client }) => {
                     elements: [
                         {
                             type: 'mrkdwn',
-                            text: "*Multifactor LLP Enterprise Services*"
+                            text: "*Enterprise Services*"
                         }
                     ]
                 },
@@ -92,7 +92,7 @@ app.command('/it-help', async ({ ack, body, client }) => {
                     type: 'section',
                     text: {
                         type: 'mrkdwn',
-                        text: "Welcome to the corporate IT support system.\n\nTo ensure rapid resolution of your technical issues, please connect with our currently active support staff. Our engineers are available to assist you with hardware, software, and network inquiries."
+                        text: "Connect with our active support staff for rapid issue resolution."
                     }
                 },
                 {
@@ -145,24 +145,23 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
 
     const nowIST = DateTime.now().setZone('Asia/Kolkata');
 
-    // FILTER: Get ALL matching engineers instead of just one
+    // FILTER: Get ALL matching engineers
     const activeEngineers = schedule.filter(eng => isEngineerOnShift(eng, nowIST));
 
     let blocks = [];
 
-    // Header Block
-    blocks.push({
-        type: 'header',
-        text: {
-            type: 'plain_text',
-            text: 'Active Support Staff',
-            emoji: true
-        }
-    });
-    blocks.push({ type: 'divider' });
-
     if (activeEngineers.length > 0) {
-        // Loop through each active engineer and create a card
+        // --- SCENARIO 1: Engineers ARE Available ---
+        blocks.push({
+            type: 'header',
+            text: {
+                type: 'plain_text',
+                text: 'Active Support Staff',
+                emoji: true
+            }
+        });
+        blocks.push({ type: 'divider' });
+
         activeEngineers.forEach(eng => {
             blocks.push({
                 type: 'section',
@@ -195,37 +194,43 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
             });
             blocks.push({ type: 'divider' });
         });
+
     } else {
-        // Fallback to Sinbad if NO engineers are found
+        // --- SCENARIO 2: NO Engineers (Offline Mode) ---
+        blocks.push({
+            type: 'header',
+            text: {
+                type: 'plain_text',
+                text: 'Support Status: Offline',
+                emoji: true
+            }
+        });
+        blocks.push({ type: 'divider' });
+
         blocks.push({
             type: 'section',
             text: {
                 type: 'mrkdwn',
-                text: `👤 *Sinbad*`
+                text: "🟡 *Our support team is currently off-shift.*"
             }
         });
+
         blocks.push({
             type: 'section',
-            fields: [
-                {
-                    type: 'mrkdwn',
-                    text: `📧 *Email Address:*\n\`sgellizeau@greatlakes.services\``
-                },
-                {
-                    type: 'mrkdwn',
-                    text: `⏰ *Shift Timing:*\n_On-Call Specialist_`
-                }
-            ]
+            text: {
+                type: 'mrkdwn',
+                text: "Standard support hours are *Monday to Friday*. Our engineers will be back online during the next scheduled shift."
+            }
         });
+
         blocks.push({
-            type: 'context',
-            elements: [
-                {
-                    type: 'mrkdwn',
-                    text: "🟡 *Status:* On-Call Support (Fallback)"
-                }
-            ]
+            type: 'section',
+            text: {
+                type: 'mrkdwn',
+                text: "👉 *For urgent technical issues, please raise a ticket on the Jira Service Desk.*"
+            }
         });
+
         blocks.push({ type: 'divider' });
     }
 
@@ -246,7 +251,7 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
             type: 'modal',
             title: {
                 type: 'plain_text',
-                text: 'Support Staff'
+                text: 'Support Portal'
             },
             blocks: blocks
         }
