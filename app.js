@@ -65,25 +65,23 @@ app.command('/it-help', async ({ ack, body, client }) => {
             callback_id: 'it_support_modal',
             title: {
                 type: 'plain_text',
-                text: 'IT Support Portal'
+                text: 'IT Support Hub'
             },
             blocks: [
                 {
                     type: 'header',
                     text: {
                         type: 'plain_text',
-                        text: 'IT SUPPORT PORTAL',
+                        text: '🏢 IT Support Hub',
                         emoji: true
                     }
                 },
                 {
-                    type: 'context',
-                    elements: [
-                        {
-                            type: 'mrkdwn',
-                            text: "*Enterprise Services*"
-                        }
-                    ]
+                    type: 'section',
+                    text: {
+                        type: 'mrkdwn',
+                        text: "*Welcome to the Multifactor LLP IT Support Portal.*\nWe are here to help you with your technical issues."
+                    }
                 },
                 {
                     type: 'divider'
@@ -92,7 +90,7 @@ app.command('/it-help', async ({ ack, body, client }) => {
                     type: 'section',
                     text: {
                         type: 'mrkdwn',
-                        text: "Connect with our active support staff for rapid issue resolution."
+                        text: "👇 *Click below to find the currently available engineer:*"
                     }
                 },
                 {
@@ -102,7 +100,7 @@ app.command('/it-help', async ({ ack, body, client }) => {
                             type: 'button',
                             text: {
                                 type: 'plain_text',
-                                text: 'View Active Support Staff',
+                                text: 'Find On-Shift Engineer',
                                 emoji: true
                             },
                             action_id: 'on_shift_engineer',
@@ -111,14 +109,11 @@ app.command('/it-help', async ({ ack, body, client }) => {
                     ]
                 },
                 {
-                    type: 'divider'
-                },
-                {
                     type: 'context',
                     elements: [
                         {
                             type: 'mrkdwn',
-                            text: "🔒 Secure & Private • Powered by Multifactor LLP"
+                            text: "⚡ Powered by Multifactor LLP"
                         }
                     ]
                 }
@@ -167,7 +162,7 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
                 type: 'section',
                 text: {
                     type: 'mrkdwn',
-                    text: `👤 *${eng.name}*`
+                    text: `*${eng.name}*`
                 }
             });
             blocks.push({
@@ -175,11 +170,11 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
                 fields: [
                     {
                         type: 'mrkdwn',
-                        text: `📧 *Email Address:*\n\`${eng.email}\``
+                        text: `Email: \`${eng.email}\``
                     },
                     {
                         type: 'mrkdwn',
-                        text: `⏰ *Shift Timing:*\n_${eng.start} - ${eng.end} IST_`
+                        text: `Shift: ${eng.start} - ${eng.end} IST`
                     }
                 ]
             });
@@ -188,7 +183,7 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
                 elements: [
                     {
                         type: 'mrkdwn',
-                        text: "🟢 *Status:* Available for Support"
+                        text: "Status: Available"
                     }
                 ]
             });
@@ -211,7 +206,7 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
             type: 'section',
             text: {
                 type: 'mrkdwn',
-                text: "🟡 *Our support team is currently off-shift.*"
+                text: "*Our support team is currently off-shift.*"
             }
         });
 
@@ -219,15 +214,7 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
             type: 'section',
             text: {
                 type: 'mrkdwn',
-                text: "Standard support hours are *Monday to Friday*. Our engineers will be back online during the next scheduled shift."
-            }
-        });
-
-        blocks.push({
-            type: 'section',
-            text: {
-                type: 'mrkdwn',
-                text: "👉 *For urgent technical issues, please raise a ticket on the Jira Service Desk.*"
+                text: "Standard support hours are Monday to Friday. Please raise a ticket on the Jira Service Desk for urgent issues."
             }
         });
 
@@ -240,7 +227,7 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
         elements: [
             {
                 type: 'mrkdwn',
-                text: `🕒 *System Time:* ${nowIST.toFormat('cccc, hh:mm a')} IST`
+                text: `Current Time: ${nowIST.toFormat('cccc, hh:mm a')} IST`
             }
         ]
     });
@@ -251,7 +238,7 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
             type: 'modal',
             title: {
                 type: 'plain_text',
-                text: 'Support Portal'
+                text: 'Engineer Details'
             },
             blocks: blocks
         }
