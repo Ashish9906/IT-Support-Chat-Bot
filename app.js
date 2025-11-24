@@ -149,288 +149,192 @@ app.command('/it-help', async ({ ack, body, client }) => {
 
     try {
         await client.views.open(viewPayload);
-    } catch (error) {
-        console.error(error);
-    }
-});
+        app.action('on_shift_engineer', async ({ ack, body, client }) => {
+            await ack();
 
-// 2. Analytics Command (Admin)
-app.command('/it-stats', async ({ ack, body, client }) => {
-    await ack();
+            // 1. Increment Stats
+            stats.total_hits += 1;
 
-    let statsText = `*📊 IT Support Bot Statistics*\n\n*Total Requests Today:* ${stats.total_hits}\n\n*Engineer Search Counts:*`;
+            const nowIST = DateTime.now().setZone('Asia/Kolkata');
 
-    for (const [name, count] of Object.entries(stats.engineer_counts)) {
-        statsText += `\n- ${name}: ${count}`;
-    }
+            // 2. Get Base Active Engineers
+            let activeEngineers = schedule.filter(eng => isEngineerOnShift(eng, nowIST));
 
-    if (Object.keys(stats.engineer_counts).length === 0) {
-        statsText += "\n(No data yet)";
-    }
+            // 3. Apply Swaps
+            activeEngineers = activeEngineers.map(eng => {
+                if (swapRegistry[eng.name]) {
+                    const newName = swapRegistry[eng.name];
+                    const newEngObj = schedule.find(e => e.name === newName);
+                    if (newEngObj) {
+                        // Return the new engineer object, but maybe keep the shift time of the original?
+                        // User said "Atul ki jagah Pavan", usually implies Pavan covers that slot.
+                        // Let's use Pavan's full details if available, but if Pavan has a different shift time in DB, it might be confusing.
+                        // For now, we replace the entire object with Pavan's object from DB.
+                        // If Pavan is NOT in DB (unlikely based on findFullName check), we'd fallback.
+                        return newEngObj;
+                    }
+                }
+                return eng;
+            });
 
-    if (process.env.TEST_MODE === 'true') {
-        console.log('--- TEST MODE: Stats Command ---');
-        console.log(statsText);
-        return;
-    }
+            // 4. Update Stats for specific engineers
+            activeEngineers.forEach(eng => {
+                stats.engineer_counts[eng.name] = (stats.engineer_counts[eng.name] || 0) + 1;
+            });
 
-    // Ephemeral message (only visible to admin)
-    try {
-        await client.chat.postEphemeral({
-            channel: body.channel_id,
-            user: body.user_id,
-            text: statsText
-        });
-    } catch (error) {
-        console.error(error);
-    }
-});
+            let blocks = [];
 
-// 3. Swap Command (Admin)
-app.command('/it-swap', async ({ ack, body, client }) => {
-    await ack();
-
-    const args = body.text.trim().split(/\s+/); // Split by space
-    // Expecting: /it-swap @Atul @Pavan OR /it-swap Atul Pavan (Simplified)
-
-    // Clean up names (remove @ if present)
-    const cleanName = (name) => name ? name.replace(/^@/, '') : '';
-
-    if (args.length < 2) {
-        const msg = "⚠️ Usage: `/it-swap [Original Name] [New Name]`\nExample: `/it-swap Atul Pavan`";
-        if (process.env.TEST_MODE === 'true') console.log(msg);
-        else await client.chat.postEphemeral({ channel: body.channel_id, user: body.user_id, text: msg });
-        return;
-    }
-
-    // Simple fuzzy match logic could go here, but for now we assume partial first name match works if unique
-    // For robustness in this MVP, let's try to find full names in schedule that START with the arg
-    const findFullName = (partial) => {
-        const match = schedule.find(e => e.name.toLowerCase().includes(partial.toLowerCase()));
-        return match ? match.name : null;
-    };
-
-    const originalPartial = cleanName(args[0]);
-    const newPartial = cleanName(args[1]);
-
-    const originalFull = findFullName(originalPartial);
-    const newFull = findFullName(newPartial);
-
-    if (!originalFull || !newFull) {
-        const msg = `⚠️ Could not find engineers matching "${originalPartial}" or "${newPartial}" in the schedule.`;
-        if (process.env.TEST_MODE === 'true') console.log(msg);
-        else await client.chat.postEphemeral({ channel: body.channel_id, user: body.user_id, text: msg });
-        return;
-    }
-
-    // Register Swap
-    swapRegistry[originalFull] = newFull;
-
-    const successMsg = `✅ **Shift Swap Active!**\n\n**${originalFull}** is now replaced by **${newFull}** for today.`;
-
-    if (process.env.TEST_MODE === 'true') {
-        console.log('--- TEST MODE: Swap Command ---');
-        console.log(successMsg);
-        console.log('Registry:', swapRegistry);
-    } else {
-        await client.chat.postEphemeral({
-            channel: body.channel_id,
-            user: body.user_id,
-            text: successMsg
-        });
-    }
-});
-
-
-// --- ACTIONS ---
-
-// Action Handler: On-Shift Engineer
-app.action('on_shift_engineer', async ({ ack, body, client }) => {
-    await ack();
-
-    // 1. Increment Stats
-    stats.total_hits += 1;
-
-    const nowIST = DateTime.now().setZone('Asia/Kolkata');
-
-    // 2. Get Base Active Engineers
-    let activeEngineers = schedule.filter(eng => isEngineerOnShift(eng, nowIST));
-
-    // 3. Apply Swaps
-    activeEngineers = activeEngineers.map(eng => {
-        if (swapRegistry[eng.name]) {
-            const newName = swapRegistry[eng.name];
-            const newEngObj = schedule.find(e => e.name === newName);
-            if (newEngObj) {
-                // Return the new engineer object, but maybe keep the shift time of the original?
-                // User said "Atul ki jagah Pavan", usually implies Pavan covers that slot.
-                // Let's use Pavan's full details if available, but if Pavan has a different shift time in DB, it might be confusing.
-                // For now, we replace the entire object with Pavan's object from DB.
-                // If Pavan is NOT in DB (unlikely based on findFullName check), we'd fallback.
-                return newEngObj;
-            }
-        }
-        return eng;
-    });
-
-    // 4. Update Stats for specific engineers
-    activeEngineers.forEach(eng => {
-        stats.engineer_counts[eng.name] = (stats.engineer_counts[eng.name] || 0) + 1;
-    });
-
-    let blocks = [];
-
-    // Header
-    blocks.push({
-        type: 'header',
-        text: {
-            type: 'plain_text',
-            text: 'Engineer Details',
-            emoji: true
-        }
-    });
-
-    // Context
-    blocks.push({
-        type: 'context',
-        elements: [
-            {
-                type: 'plain_text',
-                text: 'Multifactor LLP',
-                emoji: true
-            }
-        ]
-    });
-
-    // Section Title
-    blocks.push({
-        type: 'section',
-        text: {
-            type: 'mrkdwn',
-            text: "*Active Support Staff*"
-        }
-    });
-
-    blocks.push({ type: 'divider' });
-
-    if (activeEngineers.length > 0) {
-        // --- SCENARIO 1: Engineers ARE Available ---
-        activeEngineers.forEach(eng => {
-            // Name and Status Pill
+            // Header
             blocks.push({
-                type: 'section',
+                type: 'header',
                 text: {
-                    type: 'mrkdwn',
-                    text: `*${eng.name}*`
-                },
-                accessory: {
-                    type: 'button',
-                    text: {
-                        type: 'plain_text',
-                        text: '🟢 Available',
-                        emoji: true
-                    },
-                    action_id: 'noop_status_' + eng.name.replace(/\s/g, ''), // Unique ID
-                    value: 'status',
-                    style: 'primary'
+                    type: 'plain_text',
+                    text: 'Engineer Details',
+                    emoji: true
                 }
             });
 
-            // Details: Email (Code Block) and Shift (Plain Text)
+            // Context
             blocks.push({
-                type: 'section',
-                fields: [
+                type: 'context',
+                elements: [
                     {
-                        type: 'mrkdwn',
-                        text: `\`${eng.email}\``
-                    },
-                    {
-                        type: 'mrkdwn',
-                        text: `Shift: ${eng.start} - ${eng.end} IST`
+                        type: 'plain_text',
+                        text: 'Multifactor LLP',
+                        emoji: true
                     }
                 ]
             });
 
-            blocks.push({ type: 'divider' });
-        });
-
-    } else {
-        // --- SCENARIO 2: NO Engineers (Offline Mode) ---
-        blocks.push({
-            type: 'section',
-            text: {
-                type: 'mrkdwn',
-                text: "*Support Status: Offline*"
-            },
-            accessory: {
-                type: 'button',
+            // Section Title
+            blocks.push({
+                type: 'section',
                 text: {
-                    type: 'plain_text',
-                    text: '🟡 Offline',
-                    emoji: true
-                },
-                action_id: 'noop_status_offline',
-                value: 'status'
+                    type: 'mrkdwn',
+                    text: "*Active Support Staff*"
+                }
+            });
+
+            blocks.push({ type: 'divider' });
+
+            if (activeEngineers.length > 0) {
+                // --- SCENARIO 1: Engineers ARE Available ---
+                activeEngineers.forEach(eng => {
+                    // Name and Status Pill
+                    blocks.push({
+                        type: 'section',
+                        text: {
+                            type: 'mrkdwn',
+                            text: `*${eng.name}*`
+                        },
+                        accessory: {
+                            type: 'button',
+                            text: {
+                                type: 'plain_text',
+                                text: '🟢 Available',
+                                emoji: true
+                            },
+                            action_id: 'noop_status_' + eng.name.replace(/\s/g, ''), // Unique ID
+                            value: 'status',
+                            style: 'primary'
+                        }
+                    });
+
+                    // Details: Email (Code Block) and Shift (Plain Text)
+                    blocks.push({
+                        type: 'section',
+                        fields: [
+                            {
+                                type: 'mrkdwn',
+                                text: `\`${eng.email}\``
+                            },
+                            {
+                                type: 'mrkdwn',
+                                text: `Shift: ${eng.start} - ${eng.end} IST`
+                            }
+                        ]
+                    });
+
+                    blocks.push({ type: 'divider' });
+                });
+
+            } else {
+                // --- SCENARIO 2: NO Engineers (Offline Mode) ---
+                blocks.push({
+                    type: 'section',
+                    text: {
+                        type: 'mrkdwn',
+                        text: "*Support Status: Offline*"
+                    },
+                    accessory: {
+                        type: 'button',
+                        text: {
+                            type: 'plain_text',
+                            text: '🟡 Offline',
+                            emoji: true
+                        },
+                        action_id: 'noop_status_offline',
+                        value: 'status'
+                    }
+                });
+
+                blocks.push({
+                    type: 'section',
+                    text: {
+                        type: 'mrkdwn',
+                        text: "Our support team is currently off-shift.\nStandard support hours are Monday to Friday."
+                    }
+                });
+
+                blocks.push({
+                    type: 'section',
+                    text: {
+                        type: 'mrkdwn',
+                        text: "For urgent technical issues, please raise a ticket on the Jira Service Desk."
+                    }
+                });
+
+                blocks.push({ type: 'divider' });
+            }
+
+            // Footer with Time
+            blocks.push({
+                type: 'context',
+                elements: [
+                    {
+                        type: 'mrkdwn',
+                        text: `Current Time: ${nowIST.toFormat('cccc, hh:mm a')} IST`
+                    }
+                ]
+            });
+
+            const viewPayload = {
+                trigger_id: body.trigger_id,
+                view: {
+                    type: 'modal',
+                    title: {
+                        type: 'plain_text',
+                        text: 'Engineer Details'
+                    },
+                    blocks: blocks
+                }
+            };
+
+            if (process.env.TEST_MODE === 'true') {
+                console.log('--- TEST MODE: Pushing View (On-Shift) ---');
+                console.log(JSON.stringify(viewPayload.view, null, 2));
+                return;
+            }
+
+            try {
+                await client.views.push(viewPayload);
+            } catch (error) {
+                console.error(error);
             }
         });
 
-        blocks.push({
-            type: 'section',
-            text: {
-                type: 'mrkdwn',
-                text: "Our support team is currently off-shift.\nStandard support hours are Monday to Friday."
-            }
-        });
-
-        blocks.push({
-            type: 'section',
-            text: {
-                type: 'mrkdwn',
-                text: "For urgent technical issues, please raise a ticket on the Jira Service Desk."
-            }
-        });
-
-        blocks.push({ type: 'divider' });
-    }
-
-    // Footer with Time
-    blocks.push({
-        type: 'context',
-        elements: [
-            {
-                type: 'mrkdwn',
-                text: `Current Time: ${nowIST.toFormat('cccc, hh:mm a')} IST`
-            }
-        ]
-    });
-
-    const viewPayload = {
-        trigger_id: body.trigger_id,
-        view: {
-            type: 'modal',
-            title: {
-                type: 'plain_text',
-                text: 'Engineer Details'
-            },
-            blocks: blocks
-        }
-    };
-
-    if (process.env.TEST_MODE === 'true') {
-        console.log('--- TEST MODE: Pushing View (On-Shift) ---');
-        console.log(JSON.stringify(viewPayload.view, null, 2));
-        return;
-    }
-
-    try {
-        await client.views.push(viewPayload);
-    } catch (error) {
-        console.error(error);
-    }
-});
-
-(async () => {
-    const port = process.env.PORT || 3000;
-    await app.start(port);
-    console.log(`⚡️ Bolt app is running on port ${port}!`);
-})();
+        (async () => {
+            const port = process.env.PORT || 3000;
+            await app.start(port);
+            console.log(`⚡️ Bolt app is running on port ${port}!`);
+        })();
