@@ -77,10 +77,20 @@ app.command('/it-help', async ({ ack, body, client }) => {
                     }
                 },
                 {
+                    type: 'context',
+                    elements: [
+                        {
+                            type: 'plain_text',
+                            text: 'Multifactor LLP',
+                            emoji: true
+                        }
+                    ]
+                },
+                {
                     type: 'section',
                     text: {
                         type: 'mrkdwn',
-                        text: "*Welcome to the Multifactor LLP IT Support Portal.*\nWe are here to help you with your technical issues."
+                        text: "*Welcome to the Multifactor LLP IT Support Portal*\nWe are here to help you with your technical issues."
                     }
                 },
                 {
@@ -90,7 +100,7 @@ app.command('/it-help', async ({ ack, body, client }) => {
                     type: 'section',
                     text: {
                         type: 'mrkdwn',
-                        text: "👇 *Click below to find the currently available engineer:*"
+                        text: "🎧 *Click below to find the currently available engineer:*"
                     }
                 },
                 {
@@ -145,68 +155,97 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
 
     let blocks = [];
 
-    if (activeEngineers.length > 0) {
-        // --- SCENARIO 1: Engineers ARE Available ---
-        blocks.push({
-            type: 'header',
-            text: {
+    // Header
+    blocks.push({
+        type: 'header',
+        text: {
+            type: 'plain_text',
+            text: 'Engineer Details',
+            emoji: true
+        }
+    });
+
+    // Sub-header context
+    blocks.push({
+        type: 'context',
+        elements: [
+            {
                 type: 'plain_text',
                 text: 'Active Support Staff',
                 emoji: true
             }
-        });
-        blocks.push({ type: 'divider' });
+        ]
+    });
 
+    blocks.push({ type: 'divider' });
+
+    if (activeEngineers.length > 0) {
+        // --- SCENARIO 1: Engineers ARE Available ---
         activeEngineers.forEach(eng => {
+            // Name and Status Pill (Simulated with text)
             blocks.push({
                 type: 'section',
                 text: {
                     type: 'mrkdwn',
                     text: `*${eng.name}*`
+                },
+                accessory: {
+                    type: 'button',
+                    text: {
+                        type: 'plain_text',
+                        text: '🟢 Available',
+                        emoji: true
+                    },
+                    action_id: 'noop_status_' + eng.email, // No-op action
+                    value: 'status',
+                    style: 'primary' // Makes it green-ish (closest to a pill)
                 }
             });
+
+            // Details Grid
             blocks.push({
                 type: 'section',
                 fields: [
                     {
                         type: 'mrkdwn',
-                        text: `Email: \`${eng.email}\``
+                        text: `📧 *Email*\n\`${eng.email}\``
                     },
                     {
                         type: 'mrkdwn',
-                        text: `Shift: ${eng.start} - ${eng.end} IST`
+                        text: `🕒 *Shift*\n${eng.start} - ${eng.end} IST`
                     }
                 ]
             });
-            blocks.push({
-                type: 'context',
-                elements: [
-                    {
-                        type: 'mrkdwn',
-                        text: "Status: Available"
-                    }
-                ]
-            });
+
             blocks.push({ type: 'divider' });
         });
 
     } else {
         // --- SCENARIO 2: NO Engineers (Offline Mode) ---
         blocks.push({
-            type: 'header',
+            type: 'section',
             text: {
-                type: 'plain_text',
-                text: 'Support Status: Offline',
-                emoji: true
+                type: 'mrkdwn',
+                text: "*Support Status: Offline*"
+            },
+            accessory: {
+                type: 'button',
+                text: {
+                    type: 'plain_text',
+                    text: '🟡 Offline',
+                    emoji: true
+                },
+                action_id: 'noop_status_offline',
+                value: 'status'
+                // Default style (grey/white)
             }
         });
-        blocks.push({ type: 'divider' });
 
         blocks.push({
             type: 'section',
             text: {
                 type: 'mrkdwn',
-                text: "*Our support team is currently off-shift.*"
+                text: "Our support team is currently off-shift.\nStandard support hours are *Monday to Friday*."
             }
         });
 
@@ -214,7 +253,7 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
             type: 'section',
             text: {
                 type: 'mrkdwn',
-                text: "Standard support hours are Monday to Friday. Please raise a ticket on the Jira Service Desk for urgent issues."
+                text: "👉 *For urgent technical issues, please raise a ticket on the Jira Service Desk.*"
             }
         });
 
@@ -227,7 +266,7 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
         elements: [
             {
                 type: 'mrkdwn',
-                text: `Current Time: ${nowIST.toFormat('cccc, hh:mm a')} IST`
+                text: `🕒 Current Time: ${nowIST.toFormat('cccc, hh:mm a')} IST`
             }
         ]
     });
