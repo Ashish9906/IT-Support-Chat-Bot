@@ -2,6 +2,7 @@
   {
     "name": "Atul Pandey",
     "email": "apandey@greatlakes.services",
+    "slack_id": "YOUR_SLACK_ID_HERE",
     "start": "09:00",
     "end": "18:00",
     "days": [
@@ -15,6 +16,7 @@
   {
     "name": "Pavan Kumar",
     "email": "pkumar@greatlakes.services",
+    "slack_id": "YOUR_SLACK_ID_HERE",
     "start": "12:00",
     "end": "21:00",
     "days": [
@@ -28,40 +30,80 @@
   {
     "name": "Hussain Ratlam",
     "email": "hrwala@grealakes.services",
+    "slack_id": "YOUR_SLACK_ID_HERE",
     "start": "15:00",
     "end": "23:59",
     "days": [
       "Monday",
-      "Tuesday",
-      "Wednesday",
-      "Thursday",
-      "Friday"
-    ]
-  },
-  {
-    "name": "Kavish Agarwal",
-    "email": "kagarwal@greatlakes.services",
-    "start": "18:00",
-    "end": "03:00",
-    "days": [
-      "Monday",
-      "Tuesday",
-      "Wednesday",
-      "Thursday",
-      "Friday"
-    ]
-  },
-  {
-    "name": "Ashish Mattoo",
-    "email": "amattoo@greatlakes.services",
-    "start": "22:00",
-    "end": "07:00",
-    "days": [
-      "Monday",
-      "Tuesday",
-      "Wednesday",
-      "Thursday",
-      "Friday"
-    ]
-  }
-]
+      [
+        {
+          "name": "Atul Pandey",
+          "email": "apandey@greatlakes.services",
+          "slack_id": "YOUR_SLACK_ID_HERE",
+          "start": "09:00",
+          "end": "18:00",
+          "days": [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday"
+          ]
+        },
+        {
+          "name": "Pavan Kumar",
+          "email": "pkumar@greatlakes.services",
+          "slack_id": "YOUR_SLACK_ID_HERE",
+          "start": "12:00",
+          "end": "21:00",
+          "days": [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday"
+          ]
+        },
+        {
+          "name": "Hussain Ratlam",
+          "email": "hrwala@grealakes.services",
+          "slack_id": "YOUR_SLACK_ID_HERE",
+          "start": "15:00",
+          "end": "23:59",
+          "days": [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday"
+          ]
+        },
+        {
+          "name": "Kavish Agarwal",
+          "email": "kagarwal@greatlakes.services",
+          "slack_id": "U09UWL6E6KY",
+          "start": "18:00",
+          "end": "03:00",
+          "days": [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday"
+          ]
+        },
+        {
+          "name": "Ashish Mattoo",
+          "email": "amattoo@greatlakes.services",
+          "slack_id": "U09V5BGMEEM",
+          "start": "22:00",
+          "end": "07:00",
+          "days": [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday"
+          ]
+        }
+      ]

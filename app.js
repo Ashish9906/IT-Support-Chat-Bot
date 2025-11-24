@@ -230,6 +230,39 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
                 ]
             });
 
+            // Action: Chat Button
+            // We use the 'url' property to open a deep link to the user's DM
+            // Format: slack://user?team={TEAM_ID}&id={USER_ID}
+            // If slack_id is missing or placeholder, it might not work, but we render it anyway.
+            if (eng.slack_id && eng.slack_id !== "YOUR_SLACK_ID_HERE") {
+                blocks.push({
+                    type: 'actions',
+                    elements: [
+                        {
+                            type: 'button',
+                            text: {
+                                type: 'plain_text',
+                                text: '💬 Chat Now',
+                                emoji: true
+                            },
+                            url: `slack://user?team=${body.team.id}&id=${eng.slack_id}`,
+                            action_id: 'open_chat_' + eng.name.replace(/\s/g, '')
+                        }
+                    ]
+                });
+            } else {
+                // Fallback if ID is missing (for testing instructions)
+                blocks.push({
+                    type: 'context',
+                    elements: [
+                        {
+                            type: 'mrkdwn',
+                            text: "⚠️ *Setup Required:* Add Slack User ID in `schedule.json` to enable Chat button."
+                        }
+                    ]
+                });
+            }
+
             blocks.push({ type: 'divider' });
         });
 
