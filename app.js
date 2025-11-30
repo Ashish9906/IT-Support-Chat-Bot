@@ -359,7 +359,7 @@ app.view('submit_ticket', async ({ ack, body, view, client }) => {
     if (ticketKey) {
         // 1. Notify the User
         await client.chat.update({
-            channel: user,
+            channel: msg.channel, // Use the actual DM channel ID from the response
             ts: msg.ts,
             text: `✅ *Ticket Created Successfully!* 🎫\n\n**Key:** <https://${JIRA_DOMAIN}/browse/${ticketKey}|${ticketKey}>\n**Summary:** ${summary}\n\nAn engineer will reach out to you shortly.`
         });
@@ -378,7 +378,7 @@ app.view('submit_ticket', async ({ ack, body, view, client }) => {
 
     } else {
         await client.chat.update({
-            channel: user,
+            channel: msg.channel, // Use the actual DM channel ID from the response
             ts: msg.ts,
             text: `❌ *Failed to create ticket.* Please contact IT directly.\n\nError: Check bot logs for details.`
         });
