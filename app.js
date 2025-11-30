@@ -358,57 +358,70 @@ app.view('submit_ticket', async ({ ack, body, view, client }) => {
 
     if (ticketKey) {
         // 1. Notify the User with a Rich UI
-        await client.chat.update({
-            channel: msg.channel,
-            ts: msg.ts,
-            text: `Ticket Created: ${ticketKey}`, // Fallback text
-            blocks: [
-                {
-                    type: "header",
-                    text: {
-                        type: "plain_text",
-                        text: "✅ Ticket Submitted Successfully",
-                        emoji: true
-                    }
-                },
-                {
-                    type: "section",
-                    text: {
-                        type: "mrkdwn",
-                        text: `Your support request has been logged in our system.\n\n*Ticket Key:* <https://${JIRA_DOMAIN}/browse/${ticketKey}|${ticketKey}>\n*Summary:* ${summary}`
-                    }
-                },
-                {
-                    type: "section",
-                    fields: [
-                        {
-                            type: "mrkdwn",
-                            text: "*Status:*\nOpen"
-                        },
-                        {
-                            type: "mrkdwn",
-                            text: "*Priority:*\nNormal"
+        try {
+            await client.chat.update({
+                channel: msg.channel,
+                ts: msg.ts,
+                text: `Ticket Created: ${ticketKey}`, // Fallback text
+                blocks: [
+                    {
+                        type: "header",
+                        text: {
+                            type: "plain_text",
+                            text: "✅ Ticket Submitted Successfully",
+                            emoji: true
                         }
-                    ]
-                },
-                {
-                    type: "context",
-                    elements: [
-                        {
+                    },
+                    {
+                        type: "section",
+                        text: {
                             type: "mrkdwn",
-                            text: "Our IT team has been notified and will reach out to you shortly."
+                            text: `Your support request has been logged in our system.\n\n*Ticket Key:* <https://${JIRA_DOMAIN}/browse/${ticketKey}|${ticketKey}>\n*Summary:* ${summary}`
                         }
-                    ]
-                }
-            ]
-        });
+                    },
+                    {
+                        type: "section",
+                        fields: [
+                            {
+                                type: "mrkdwn",
+                                text: "*Status:*\nOpen"
+                            },
+                            {
+                                type: "mrkdwn",
+                                text: "*Priority:*\nNormal"
+                            }
+                        ]
+                    },
+                    {
+                        type: "context",
+                        elements: [
+                            {
+                                type: "mrkdwn",
+                                text: "Our IT team has been notified and will reach out to you shortly."
+                            }
+                        ]
+                    }
+                ]
+            });
+        } catch (error) {
+            console.error("Failed to update message, sending new one:", error);
+            // Fallback: Send a new message if update fails
+            await client.chat.postMessage({
+                channel: user,
+                text: `✅ *Ticket Created Successfully!* 🎫\n\n**Key:** <https://${JIRA_DOMAIN}/browse/${ticketKey}|${ticketKey}>\n**Summary:** ${summary}`
+            });
+        }
 
     } else {
-        await client.chat.update({
-            channel: msg.channel, // Use the actual DM channel ID from the response
-            ts: msg.ts,
-            text: `❌ *Failed to create ticket.* Please contact IT directly.\n\nError: Check bot logs for details.`
-        });
+        try {
+            await client.chat.update({
+                channel: msg.channel,
+                ts: msg.ts,
+                text: `❌ *Failed to create ticket.* Please contact IT directly.\n\nError: Check bot logs for details.`
+            });
+        } catch (error) {
+            console.error("Failed to update error message:", error);
+        }
     }
 });
 
