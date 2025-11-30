@@ -357,11 +357,50 @@ app.view('submit_ticket', async ({ ack, body, view, client }) => {
     const ticketKey = await createJiraTicket(summary, description, userEmail);
 
     if (ticketKey) {
-        // 1. Notify the User
+        // 1. Notify the User with a Rich UI
         await client.chat.update({
-            channel: msg.channel, // Use the actual DM channel ID from the response
+            channel: msg.channel,
             ts: msg.ts,
-            text: `✅ *Ticket Created Successfully!* 🎫\n\n**Key:** <https://${JIRA_DOMAIN}/browse/${ticketKey}|${ticketKey}>\n**Summary:** ${summary}\n\nAn engineer will reach out to you shortly.`
+            text: `Ticket Created: ${ticketKey}`, // Fallback text
+            blocks: [
+                {
+                    type: "header",
+                    text: {
+                        type: "plain_text",
+                        text: "✅ Ticket Submitted Successfully",
+                        emoji: true
+                    }
+                },
+                {
+                    type: "section",
+                    text: {
+                        type: "mrkdwn",
+                        text: `Your support request has been logged in our system.\n\n*Ticket Key:* <https://${JIRA_DOMAIN}/browse/${ticketKey}|${ticketKey}>\n*Summary:* ${summary}`
+                    }
+                },
+                {
+                    type: "section",
+                    fields: [
+                        {
+                            type: "mrkdwn",
+                            text: "*Status:*\nOpen"
+                        },
+                        {
+                            type: "mrkdwn",
+                            text: "*Priority:*\nNormal"
+                        }
+                    ]
+                },
+                {
+                    type: "context",
+                    elements: [
+                        {
+                            type: "mrkdwn",
+                            text: "Our IT team has been notified and will reach out to you shortly."
+                        }
+                    ]
+                }
+            ]
         });
 
     } else {
