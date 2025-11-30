@@ -109,7 +109,71 @@ function isEngineerOnShift(engineer, nowIST) {
 
 // --- COMMANDS ---
 
-// 1. Main Help Command
+// --- JIRA CONFIGURATION ---
+const JIRA_DOMAIN = process.env.JIRA_DOMAIN;
+const JIRA_EMAIL = process.env.JIRA_EMAIL;
+const JIRA_API_TOKEN = process.env.JIRA_API_TOKEN;
+const JIRA_PROJECT_KEY = process.env.JIRA_PROJECT_KEY;
+
+// Helper: Create Jira Ticket
+async function createJiraTicket(summary, description, userEmail) {
+    const url = `https://${JIRA_DOMAIN}/rest/api/3/issue`;
+    const auth = Buffer.from(`${JIRA_EMAIL}:${JIRA_API_TOKEN}`).toString('base64');
+
+    const bodyData = {
+        fields: {
+            project: {
+                key: JIRA_PROJECT_KEY
+            },
+            summary: summary,
+            description: {
+                type: "doc",
+                version: 1,
+                content: [
+                    {
+                        type: "paragraph",
+                        content: [
+                            {
+                                type: "text",
+                                text: description + `\n\nRaised by: ${userEmail}`
+                            }
+                        ]
+                    }
+                ]
+            },
+            issuetype: {
+                name: "Task"
+            }
+        }
+    };
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Basic ${auth}`,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(bodyData)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Jira API Error: ${response.status} - ${errorText}`);
+        }
+
+        const data = await response.json();
+        return data.key; // Returns ticket key like "IT-101"
+    } catch (error) {
+        console.error("Jira Creation Failed:", error);
+        return null;
+    }
+}
+
+// --- COMMANDS ---
+
+// 1. Main Help Command (The Dashboard)
 app.command('/it-help', async ({ ack, body, client }) => {
     await ack();
 
@@ -117,68 +181,70 @@ app.command('/it-help', async ({ ack, body, client }) => {
         trigger_id: body.trigger_id,
         view: {
             type: 'modal',
-            callback_id: 'it_support_modal',
+            callback_id: 'it_dashboard',
             title: {
                 type: 'plain_text',
-                text: 'IT Support Hub'
+                text: 'IT Support Hub 🚀'
             },
             blocks: [
                 {
                     type: 'header',
                     text: {
                         type: 'plain_text',
-                        text: 'IT Support Hub',
+                        text: 'How can we help you today?',
                         emoji: true
                     }
                 },
                 {
-                    type: 'context',
-                    elements: [
-                        {
+                    type: 'section',
+                    text: {
+                        type: 'mrkdwn',
+                        text: "Choose an option below to get started:"
+                    }
+                },
+                { type: 'divider' },
+                {
+                    type: 'section',
+                    text: {
+                        type: 'mrkdwn',
+                        text: "*👨‍💻 Find On-Shift Engineer*\nSee who is available right now for urgent help."
+                    },
+                    accessory: {
+                        type: 'button',
+                        text: {
                             type: 'plain_text',
-                            text: 'Multifactor LLP',
+                            text: 'Check Availability',
                             emoji: true
-                        }
-                    ]
+                        },
+                        action_id: 'on_shift_engineer',
+                        style: 'primary'
+                    }
                 },
+                { type: 'divider' },
                 {
                     type: 'section',
                     text: {
                         type: 'mrkdwn',
-                        text: "*Welcome to the Multifactor LLP IT Support Portal*\nWe are here to help you with your technical issues."
+                        text: "*🎫 Raise a Jira Ticket*\nSubmit a formal request for hardware, software, or access issues."
+                    },
+                    accessory: {
+                        type: 'button',
+                        text: {
+                            type: 'plain_text',
+                            text: 'Raise Ticket',
+                            emoji: true
+                        },
+                        action_id: 'open_ticket_modal',
+                        // No style (default) or danger? Default is fine.
                     }
                 },
-                {
-                    type: 'divider'
-                },
-                {
-                    type: 'section',
-                    text: {
-                        type: 'mrkdwn',
-                        text: "Click below to find the currently available engineer:"
-                    }
-                },
-                {
-                    type: 'actions',
-                    elements: [
-                        {
-                            type: 'button',
-                            text: {
-                                type: 'plain_text',
-                                text: 'Find On-Shift Engineer',
-                                emoji: true
-                            },
-                            action_id: 'on_shift_engineer',
-                            style: 'primary'
-                        }
-                    ]
-                },
+                { type: 'divider' },
                 {
                     type: 'context',
                     elements: [
                         {
                             type: 'mrkdwn',
-                            text: "Powered by Multifactor LLP"
+                            text: "Powered by Multifactor LLP IT Team"
                         }
                     ]
                 }
@@ -186,16 +252,123 @@ app.command('/it-help', async ({ ack, body, client }) => {
         }
     };
 
-    if (process.env.TEST_MODE === 'true') {
-        console.log('--- TEST MODE: Opening Modal ---');
-        console.log(JSON.stringify(viewPayload.view, null, 2));
-        return;
-    }
-
     try {
         await client.views.open(viewPayload);
     } catch (error) {
         console.error(error);
+    }
+});
+
+// ... (Admin Command remains same) ...
+
+// --- ACTIONS ---
+
+// Action: Open Ticket Modal
+app.action('open_ticket_modal', async ({ ack, body, client }) => {
+    await ack();
+
+    await client.views.push({
+        trigger_id: body.trigger_id,
+        view: {
+            type: 'modal',
+            callback_id: 'submit_ticket',
+            title: {
+                type: 'plain_text',
+                text: 'New Support Ticket'
+            },
+            blocks: [
+                {
+                    type: 'input',
+                    block_id: 'summary_block',
+                    element: {
+                        type: 'plain_text_input',
+                        action_id: 'summary_input',
+                        placeholder: {
+                            type: 'plain_text',
+                            text: 'Short summary of the issue (e.g. Laptop Screen Flickering)'
+                        }
+                    },
+                    label: {
+                        type: 'plain_text',
+                        text: 'Issue Summary'
+                    }
+                },
+                {
+                    type: 'input',
+                    block_id: 'desc_block',
+                    element: {
+                        type: 'plain_text_input',
+                        action_id: 'desc_input',
+                        multiline: true,
+                        placeholder: {
+                            type: 'plain_text',
+                            text: 'Describe the problem in detail...'
+                        }
+                    },
+                    label: {
+                        type: 'plain_text',
+                        text: 'Description'
+                    }
+                }
+            ],
+            submit: {
+                type: 'plain_text',
+                text: 'Submit Ticket'
+            }
+        }
+    });
+});
+
+// View Submission: Handle Ticket Creation
+app.view('submit_ticket', async ({ ack, body, view, client }) => {
+    // Acknowledge the view_submission event
+    // We can update the view later or send a DM. 
+    // For better UX, we ack() immediately to close the modal, then send a DM.
+    await ack();
+
+    const summary = view.state.values.summary_block.summary_input.value;
+    const description = view.state.values.desc_block.desc_input.value;
+    const user = body.user.id;
+
+    // Get user info for email (optional, but good for Jira)
+    let userEmail = "Unknown User";
+    try {
+        const userInfo = await client.users.info({ user: user });
+        userEmail = userInfo.user.profile.email || userInfo.user.name;
+    } catch (e) {
+        console.error("Could not fetch user info", e);
+    }
+
+    // Call Jira API
+    // NOTE: This will fail if credentials are not set. We handle that gracefully.
+    if (JIRA_API_TOKEN === "your-api-token") {
+        await client.chat.postMessage({
+            channel: user,
+            text: `⚠️ *Configuration Missing:* Jira credentials are not set in the bot. \n\n*Ticket Details (Not Sent):*\nSummary: ${summary}\nDescription: ${description}`
+        });
+        return;
+    }
+
+    // Send "Processing" message
+    const msg = await client.chat.postMessage({
+        channel: user,
+        text: "⏳ Creating your ticket in Jira..."
+    });
+
+    const ticketKey = await createJiraTicket(summary, description, userEmail);
+
+    if (ticketKey) {
+        await client.chat.update({
+            channel: user,
+            ts: msg.ts,
+            text: `✅ *Ticket Created Successfully!* 🎫\n\n**Key:** <https://${JIRA_DOMAIN}/browse/${ticketKey}|${ticketKey}>\n**Summary:** ${summary}\n\nAn engineer will reach out to you shortly.`
+        });
+    } else {
+        await client.chat.update({
+            channel: user,
+            ts: msg.ts,
+            text: `❌ *Failed to create ticket.* Please contact IT directly.\n\nError: Check bot logs for details.`
+        });
     }
 });
 
