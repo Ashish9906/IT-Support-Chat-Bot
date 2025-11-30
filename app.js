@@ -757,6 +757,48 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
         index === self.findIndex((t) => (t.name === eng.name))
     );
 
+    // --- ENRICH WITH REAL-TIME SLACK STATUS ---
+    // We need to fetch presence and custom status for each engineer
+    const enrichedEngineers = await Promise.all(finalEngineers.map(async (eng) => {
+        let statusText = "⚪ Offline/Unknown";
+        let statusEmoji = "";
+        let isOnline = false;
+
+        if (eng.slack_id && eng.slack_id !== "YOUR_SLACK_ID_HERE") {
+            try {
+                // 1. Get Presence (Active/Away)
+                const presenceReq = await client.users.getPresence({ user: eng.slack_id });
+                isOnline = (presenceReq.presence === 'active');
+
+                // 2. Get Custom Status (Meeting, Call, etc.)
+                const profileReq = await client.users.profile.get({ user: eng.slack_id });
+                const profile = profileReq.profile;
+
+                if (profile.status_text) {
+                    statusText = `${profile.status_emoji} ${profile.status_text}`;
+                    // If they have a custom status, we use that. 
+                    // But we also want to show if they are "Active" or "Away" alongside it?
+                    // User asked for "Call/Meet" etc. usually implies custom status.
+                    // Let's combine: "🟢 Active | 📅 In a Meeting"
+                    const onlineIcon = isOnline ? "🟢" : "⚪";
+                    statusText = `${onlineIcon} ${profile.status_emoji} ${profile.status_text}`;
+                } else {
+                    // No custom status, just show Online/Away
+                    statusText = isOnline ? "🟢 Active" : "⚪ Away";
+                }
+
+            } catch (error) {
+                console.error(`Failed to fetch status for ${eng.name}:`, error);
+                statusText = "❓ Status Unknown";
+            }
+        } else {
+            statusText = "⚠️ ID Missing";
+        }
+
+        return { ...eng, realTimeStatus: statusText };
+    }));
+
+
     let blocks = [];
 
     // Header
@@ -792,9 +834,9 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
 
     blocks.push({ type: 'divider' });
 
-    if (finalEngineers.length > 0) {
+    if (enrichedEngineers.length > 0) {
         // --- SCENARIO 1: Engineers ARE Available ---
-        finalEngineers.forEach(eng => {
+        enrichedEngineers.forEach(eng => {
             // Name and Status Pill
             // User Request: Simplify UI. Substitutes should look just like normal available engineers.
             let statusText = '🟢 Available';
@@ -809,12 +851,12 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
                     type: 'button',
                     text: {
                         type: 'plain_text',
-                        text: statusText,
+                        text: eng.realTimeStatus, // Dynamic Status
                         emoji: true
                     },
                     action_id: 'noop_status_' + eng.name.replace(/\s/g, ''), // Unique ID
                     value: 'status',
-                    style: 'primary'
+                    // style: 'primary' // Removed style to keep it neutral or use logic to color code if needed
                 }
             });
 
