@@ -364,18 +364,6 @@ app.view('submit_ticket', async ({ ack, body, view, client }) => {
             text: `✅ *Ticket Created Successfully!* 🎫\n\n**Key:** <https://${JIRA_DOMAIN}/browse/${ticketKey}|${ticketKey}>\n**Summary:** ${summary}\n\nAn engineer will reach out to you shortly.`
         });
 
-        // 2. Notify the IT Team Channel
-        const IT_CHANNEL_ID = process.env.IT_TICKET_CHANNEL_ID || "C09UQCSQYCW";
-
-        try {
-            await client.chat.postMessage({
-                channel: IT_CHANNEL_ID,
-                text: `🚨 *New Jira Ticket Raised* 🚨\n\n*Key:* <https://${JIRA_DOMAIN}/browse/${ticketKey}|${ticketKey}>\n*Summary:* ${summary}\n*Raised By:* <@${user}>\n*Description:* ${description}`
-            });
-        } catch (error) {
-            console.error("Failed to notify IT Channel:", error);
-        }
-
     } else {
         await client.chat.update({
             channel: msg.channel, // Use the actual DM channel ID from the response
