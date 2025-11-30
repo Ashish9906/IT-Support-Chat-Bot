@@ -330,7 +330,7 @@ app.view('submit_ticket', async ({ ack, body, view, client }) => {
     const description = view.state.values.desc_block.desc_input.value;
     const user = body.user.id;
 
-    // Get user info for email (optional, but good for Jira)
+    // Get user info for email
     let userEmail = "Unknown User";
     try {
         const userInfo = await client.users.info({ user: user });
@@ -340,8 +340,7 @@ app.view('submit_ticket', async ({ ack, body, view, client }) => {
     }
 
     // Call Jira API
-    // NOTE: This will fail if credentials are not set. We handle that gracefully.
-    if (JIRA_API_TOKEN === "your-api-token") {
+    if (!JIRA_API_TOKEN) {
         await client.chat.postMessage({
             channel: user,
             text: `⚠️ *Configuration Missing:* Jira credentials are not set in the bot. \n\n*Ticket Details (Not Sent):*\nSummary: ${summary}\nDescription: ${description}`
@@ -358,11 +357,25 @@ app.view('submit_ticket', async ({ ack, body, view, client }) => {
     const ticketKey = await createJiraTicket(summary, description, userEmail);
 
     if (ticketKey) {
+        // 1. Notify the User
         await client.chat.update({
             channel: user,
             ts: msg.ts,
             text: `✅ *Ticket Created Successfully!* 🎫\n\n**Key:** <https://${JIRA_DOMAIN}/browse/${ticketKey}|${ticketKey}>\n**Summary:** ${summary}\n\nAn engineer will reach out to you shortly.`
         });
+
+        // 2. Notify the IT Team Channel
+        const IT_CHANNEL_ID = process.env.IT_TICKET_CHANNEL_ID || "C09UQCSQYCW";
+
+        try {
+            await client.chat.postMessage({
+                channel: IT_CHANNEL_ID,
+                text: `🚨 *New Jira Ticket Raised* 🚨\n\n*Key:* <https://${JIRA_DOMAIN}/browse/${ticketKey}|${ticketKey}>\n*Summary:* ${summary}\n*Raised By:* <@${user}>\n*Description:* ${description}`
+            });
+        } catch (error) {
+            console.error("Failed to notify IT Channel:", error);
+        }
+
     } else {
         await client.chat.update({
             channel: user,
