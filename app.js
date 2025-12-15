@@ -160,269 +160,96 @@ async function createJiraTicket(summary, description, userEmail) {
 
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`Jira API Error: ${response.status} - ${errorText}`);
+            throw new Error(`Status: ${response.status} - ${errorText}`);
         }
 
         const data = await response.json();
-        return data.key; // Returns ticket key like "IT-101"
+        return { success: true, key: data.key };
     } catch (error) {
         console.error("Jira Creation Failed:", error);
-        return null;
+        return { success: false, error: error.message };
     }
 }
 
-// --- COMMANDS ---
+// ... (Rest of code) ...
 
-// 1. Main Help Command (The Dashboard)
-app.command('/it-help', async ({ ack, body, client }) => {
-    await ack();
+// Just before view handling
 
-    const viewPayload = {
-        trigger_id: body.trigger_id,
-        view: {
-            type: 'modal',
-            callback_id: 'it_dashboard',
-            title: {
-                type: 'plain_text',
-                text: 'IT Support Hub 🚀'
-            },
+const ticketResult = await createJiraTicket(summary, description, userEmail);
+
+if (ticketResult.success) {
+    const ticketKey = ticketResult.key;
+    // 1. Notify the User with a Rich UI
+    try {
+        await client.chat.update({
+            channel: msg.channel,
+            ts: msg.ts,
+            text: `Ticket Created: ${ticketKey}`, // Fallback text
             blocks: [
                 {
-                    type: 'header',
+                    type: "header",
                     text: {
-                        type: 'plain_text',
-                        text: 'How can we help you today?',
+                        type: "plain_text",
+                        text: "✅ Ticket Submitted Successfully",
                         emoji: true
                     }
                 },
                 {
-                    type: 'section',
+                    type: "section",
                     text: {
-                        type: 'mrkdwn',
-                        text: "Choose an option below to get started:"
+                        type: "mrkdwn",
+                        text: `Your support request has been logged in our system.\n\n*Ticket Key:* <https://${JIRA_DOMAIN}/browse/${ticketKey}|${ticketKey}>\n*Summary:* ${summary}`
                     }
                 },
-                { type: 'divider' },
                 {
-                    type: 'section',
-                    text: {
-                        type: 'mrkdwn',
-                        text: "*👨‍💻 Find On-Shift Engineer*\nSee who is available right now for urgent help."
-                    },
-                    accessory: {
-                        type: 'button',
-                        text: {
-                            type: 'plain_text',
-                            text: 'Check Availability',
-                            emoji: true
+                    type: "section",
+                    fields: [
+                        {
+                            type: "mrkdwn",
+                            text: "*Status:*\nOpen"
                         },
-                        action_id: 'on_shift_engineer',
-                        style: 'primary'
-                    }
+                        {
+                            type: "mrkdwn",
+                            text: "*Priority:*\nNormal"
+                        }
+                    ]
                 },
-                { type: 'divider' },
                 {
-                    type: 'section',
-                    text: {
-                        type: 'mrkdwn',
-                        text: "*🎫 Raise a Jira Ticket*\nSubmit a formal request for hardware, software, or access issues."
-                    },
-                    accessory: {
-                        type: 'button',
-                        text: {
-                            type: 'plain_text',
-                            text: 'Raise Ticket',
-                            emoji: true
-                        },
-                        action_id: 'open_ticket_modal',
-                        // No style (default) or danger? Default is fine.
-                    }
-                },
-                { type: 'divider' },
-                {
-                    type: 'context',
+                    type: "context",
                     elements: [
                         {
-                            type: 'mrkdwn',
-                            text: "Powered by Multifactor LLP IT Team"
+                            type: "mrkdwn",
+                            text: "Our IT team has been notified and will reach out to you shortly."
                         }
                     ]
                 }
             ]
-        }
-    };
-
-    try {
-        await client.views.open(viewPayload);
+        });
     } catch (error) {
-        console.error(error);
-    }
-});
-
-// ... (Admin Command remains same) ...
-
-// --- ACTIONS ---
-
-// Action: Open Ticket Modal
-app.action('open_ticket_modal', async ({ ack, body, client }) => {
-    await ack();
-
-    await client.views.push({
-        trigger_id: body.trigger_id,
-        view: {
-            type: 'modal',
-            callback_id: 'submit_ticket',
-            title: {
-                type: 'plain_text',
-                text: 'New Support Ticket'
-            },
-            blocks: [
-                {
-                    type: 'input',
-                    block_id: 'summary_block',
-                    element: {
-                        type: 'plain_text_input',
-                        action_id: 'summary_input',
-                        placeholder: {
-                            type: 'plain_text',
-                            text: 'Short summary of the issue (e.g. Laptop Screen Flickering)'
-                        }
-                    },
-                    label: {
-                        type: 'plain_text',
-                        text: 'Issue Summary'
-                    }
-                },
-                {
-                    type: 'input',
-                    block_id: 'desc_block',
-                    element: {
-                        type: 'plain_text_input',
-                        action_id: 'desc_input',
-                        multiline: true,
-                        placeholder: {
-                            type: 'plain_text',
-                            text: 'Describe the problem in detail...'
-                        }
-                    },
-                    label: {
-                        type: 'plain_text',
-                        text: 'Description'
-                    }
-                }
-            ],
-            submit: {
-                type: 'plain_text',
-                text: 'Submit Ticket'
-            }
-        }
-    });
-});
-
-// View Submission: Handle Ticket Creation
-app.view('submit_ticket', async ({ ack, body, view, client }) => {
-    // Acknowledge the view_submission event
-    // We can update the view later or send a DM. 
-    // For better UX, we ack() immediately to close the modal, then send a DM.
-    await ack();
-
-    const summary = view.state.values.summary_block.summary_input.value;
-    const description = view.state.values.desc_block.desc_input.value;
-    const user = body.user.id;
-
-    // Get user info for email
-    let userEmail = "Unknown User";
-    try {
-        const userInfo = await client.users.info({ user: user });
-        userEmail = userInfo.user.profile.email || userInfo.user.name;
-    } catch (e) {
-        console.error("Could not fetch user info", e);
-    }
-
-    // Call Jira API
-    if (!JIRA_API_TOKEN) {
+        console.error("Failed to update message, sending new one:", error);
+        // Fallback: Send a new message if update fails
         await client.chat.postMessage({
             channel: user,
-            text: `⚠️ *Configuration Missing:* Jira credentials are not set in the bot. \n\n*Ticket Details (Not Sent):*\nSummary: ${summary}\nDescription: ${description}`
+            text: `✅ *Ticket Created Successfully!* 🎫\n\n**Key:** <https://${JIRA_DOMAIN}/browse/${ticketKey}|${ticketKey}>\n**Summary:** ${summary}`
         });
-        return;
     }
 
-    // Send "Processing" message
-    const msg = await client.chat.postMessage({
-        channel: user,
-        text: "⏳ Creating your ticket in Jira..."
-    });
-
-    const ticketKey = await createJiraTicket(summary, description, userEmail);
-
-    if (ticketKey) {
-        // 1. Notify the User with a Rich UI
-        try {
-            await client.chat.update({
-                channel: msg.channel,
-                ts: msg.ts,
-                text: `Ticket Created: ${ticketKey}`, // Fallback text
-                blocks: [
-                    {
-                        type: "header",
-                        text: {
-                            type: "plain_text",
-                            text: "✅ Ticket Submitted Successfully",
-                            emoji: true
-                        }
-                    },
-                    {
-                        type: "section",
-                        text: {
-                            type: "mrkdwn",
-                            text: `Your support request has been logged in our system.\n\n*Ticket Key:* <https://${JIRA_DOMAIN}/browse/${ticketKey}|${ticketKey}>\n*Summary:* ${summary}`
-                        }
-                    },
-                    {
-                        type: "section",
-                        fields: [
-                            {
-                                type: "mrkdwn",
-                                text: "*Status:*\nOpen"
-                            },
-                            {
-                                type: "mrkdwn",
-                                text: "*Priority:*\nNormal"
-                            }
-                        ]
-                    },
-                    {
-                        type: "context",
-                        elements: [
-                            {
-                                type: "mrkdwn",
-                                text: "Our IT team has been notified and will reach out to you shortly."
-                            }
-                        ]
-                    }
-                ]
-            });
-        } catch (error) {
-            console.error("Failed to update message, sending new one:", error);
-            // Fallback: Send a new message if update fails
-            await client.chat.postMessage({
-                channel: user,
-                text: `✅ *Ticket Created Successfully!* 🎫\n\n**Key:** <https://${JIRA_DOMAIN}/browse/${ticketKey}|${ticketKey}>\n**Summary:** ${summary}`
-            });
-        }
-
-    } else {
-        try {
-            await client.chat.update({
-                channel: msg.channel,
-                ts: msg.ts,
-                text: `❌ *Failed to create ticket.* Please contact IT directly.\n\nError: Check bot logs for details.`
-            });
-        } catch (error) {
-            console.error("Failed to update error message:", error);
-        }
+} else {
+    const errorMessage = ticketResult.error || "Unknown Error";
+    try {
+        await client.chat.update({
+            channel: msg.channel,
+            ts: msg.ts,
+            text: `❌ *Failed to create ticket.* Please contact IT directly.\n\n*Error Details:* \`${errorMessage}\``
+        });
+    } catch (error) {
+        console.error("Failed to update error message:", error);
+        await client.chat.postMessage({
+            channel: user,
+            text: `❌ *Failed to create ticket.* Please contact IT directly.\n\n*Error Details:* \`${errorMessage}\``
+        });
     }
+}
 });
 
 // 2. Admin Dashboard Command
