@@ -14,6 +14,11 @@
                 "command": "/it-help",
                 "description": "Get IT Support",
                 "should_escape": false
+            },
+            {
+                "command": "/it-admin",
+                "description": "Admin Dashboard",
+                "should_escape": false
             }
         ]
     },
@@ -21,7 +26,10 @@
         "scopes": {
             "bot": [
                 "commands",
-                "chat:write"
+                "chat:write",
+                "users:read",
+                "users.profile:read",
+                "im:write"
             ]
         }
     },
