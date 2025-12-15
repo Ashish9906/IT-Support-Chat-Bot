@@ -260,6 +260,62 @@ app.command('/it-help', async ({ ack, body, client }) => {
     }
 });
 
+// Action: Open Ticket Modal
+app.action('open_ticket_modal', async ({ ack, body, client }) => {
+    await ack();
+
+    await client.views.push({
+        trigger_id: body.trigger_id,
+        view: {
+            type: 'modal',
+            callback_id: 'submit_ticket',
+            title: {
+                type: 'plain_text',
+                text: 'New Support Ticket'
+            },
+            blocks: [
+                {
+                    type: 'input',
+                    block_id: 'summary_block',
+                    element: {
+                        type: 'plain_text_input',
+                        action_id: 'summary_input',
+                        placeholder: {
+                            type: 'plain_text',
+                            text: 'Short summary of the issue (e.g. Laptop Screen Flickering)'
+                        }
+                    },
+                    label: {
+                        type: 'plain_text',
+                        text: 'Issue Summary'
+                    }
+                },
+                {
+                    type: 'input',
+                    block_id: 'desc_block',
+                    element: {
+                        type: 'plain_text_input',
+                        action_id: 'desc_input',
+                        multiline: true,
+                        placeholder: {
+                            type: 'plain_text',
+                            text: 'Describe the problem in detail...'
+                        }
+                    },
+                    label: {
+                        type: 'plain_text',
+                        text: 'Description'
+                    }
+                }
+            ],
+            submit: {
+                type: 'plain_text',
+                text: 'Submit Ticket'
+            }
+        }
+    });
+});
+
 // View Submission: Handle Ticket Creation
 app.view('submit_ticket', async ({ ack, body, view, client }) => {
     await ack();
