@@ -184,6 +184,7 @@ app.command('/it-help', async ({ ack, body, client }) => {
         view: {
             type: 'modal',
             callback_id: 'it_dashboard',
+            private_metadata: body.channel_id, // Store source channel ID
             title: {
                 type: 'plain_text',
                 text: 'IT Support Hub'
@@ -264,11 +265,14 @@ app.command('/it-help', async ({ ack, body, client }) => {
 app.action('open_ticket_modal', async ({ ack, body, client }) => {
     await ack();
 
+    const channelId = body.view.private_metadata;
+
     await client.views.push({
         trigger_id: body.trigger_id,
         view: {
             type: 'modal',
             callback_id: 'submit_ticket',
+            private_metadata: channelId, // Pass channel ID to next view
             title: {
                 type: 'plain_text',
                 text: 'New Support Ticket'
@@ -323,6 +327,7 @@ app.view('submit_ticket', async ({ ack, body, view, client }) => {
     const summary = view.state.values.summary_block.summary_input.value;
     const description = view.state.values.desc_block.desc_input.value;
     const user = body.user.id;
+    const channelId = view.private_metadata || user; // Fallback to user (DM) if metadata missing
 
     // Get user info for email
     let userEmail = "Unknown User";
@@ -333,54 +338,43 @@ app.view('submit_ticket', async ({ ack, body, view, client }) => {
         console.error("Could not fetch user info", e);
     }
 
-    // Send "Processing" message
-    const msg = await client.chat.postMessage({
-        channel: user,
-        text: "⏳ Creating your ticket in Jira..."
-    });
+    // Note: Replaced "Processing" message with direct creation to minimize UI noise as requested.
 
     const ticketResult = await createJiraTicket(summary, description, userEmail);
 
     if (ticketResult.success) {
         const ticketKey = ticketResult.key;
         try {
-            await client.chat.update({
-                channel: msg.channel,
-                ts: msg.ts,
-                text: `✅ *Ticket Submitted:* <https://${JIRA_DOMAIN}/browse/${ticketKey}|${ticketKey}>`,
+            // Success: Send small Ephemeral Message (Visible only to user, no DM created)
+            await client.chat.postEphemeral({
+                channel: channelId,
+                user: user,
+                text: `✅ Ticket Submitted: ${ticketKey}`,
                 blocks: [
                     {
                         type: "section",
                         text: {
                             type: "mrkdwn",
-                            text: `✅ *Ticket Submitted Successfully*\nKey: <https://${JIRA_DOMAIN}/browse/${ticketKey}|${ticketKey}>`
+                            text: `✅ *Ticket Submitted*\nKey: <https://${JIRA_DOMAIN}/browse/${ticketKey}|${ticketKey}>`
                         }
                     }
                 ]
             });
         } catch (error) {
-            console.error("Failed to update message, sending new one:", error);
-            // Fallback: Send a new message if update fails
-            await client.chat.postMessage({
-                channel: user,
-                text: `✅ *Ticket Submitted Successfully*\nKey: <https://${JIRA_DOMAIN}/browse/${ticketKey}|${ticketKey}>`
-            });
+            console.error("Failed to send ephemeral success:", error);
         }
 
     } else {
         const errorMessage = ticketResult.error || "Unknown Error";
         try {
-            await client.chat.update({
-                channel: msg.channel,
-                ts: msg.ts,
-                text: `❌ *Failed to create ticket.* Please contact IT directly.\n\n*Error Details:* \`${errorMessage}\``
+            // Error: Send small Ephemeral Message
+            await client.chat.postEphemeral({
+                channel: channelId,
+                user: user,
+                text: `❌ Failed to create ticket. Error: ${errorMessage}`
             });
         } catch (error) {
-            console.error("Failed to update error message:", error);
-            await client.chat.postMessage({
-                channel: user,
-                text: `❌ *Failed to create ticket.* Please contact IT directly.\n\n*Error Details:* \`${errorMessage}\``
-            });
+            console.error("Failed to send ephemeral error:", error);
         }
     }
 });
