@@ -347,44 +347,14 @@ app.view('submit_ticket', async ({ ack, body, view, client }) => {
             await client.chat.update({
                 channel: msg.channel,
                 ts: msg.ts,
-                text: `Ticket Created: ${ticketKey}`, // Fallback text
+                text: `✅ *Ticket Submitted:* <https://${JIRA_DOMAIN}/browse/${ticketKey}|${ticketKey}>`,
                 blocks: [
-                    {
-                        type: "header",
-                        text: {
-                            type: "plain_text",
-                            text: "✅ Ticket Submitted Successfully",
-                            emoji: true
-                        }
-                    },
                     {
                         type: "section",
                         text: {
                             type: "mrkdwn",
-                            text: `Your support request has been logged in our system.\n\n*Ticket Key:* <https://${JIRA_DOMAIN}/browse/${ticketKey}|${ticketKey}>\n*Summary:* ${summary}`
+                            text: `✅ *Ticket Submitted Successfully*\nKey: <https://${JIRA_DOMAIN}/browse/${ticketKey}|${ticketKey}>`
                         }
-                    },
-                    {
-                        type: "section",
-                        fields: [
-                            {
-                                type: "mrkdwn",
-                                text: "*Status:*\nOpen"
-                            },
-                            {
-                                type: "mrkdwn",
-                                text: "*Priority:*\nNormal"
-                            }
-                        ]
-                    },
-                    {
-                        type: "context",
-                        elements: [
-                            {
-                                type: "mrkdwn",
-                                text: "Our IT team has been notified and will reach out to you shortly."
-                            }
-                        ]
                     }
                 ]
             });
@@ -393,7 +363,7 @@ app.view('submit_ticket', async ({ ack, body, view, client }) => {
             // Fallback: Send a new message if update fails
             await client.chat.postMessage({
                 channel: user,
-                text: `✅ *Ticket Created Successfully!* 🎫\n\n**Key:** <https://${JIRA_DOMAIN}/browse/${ticketKey}|${ticketKey}>\n**Summary:** ${summary}`
+                text: `✅ *Ticket Submitted Successfully*\nKey: <https://${JIRA_DOMAIN}/browse/${ticketKey}|${ticketKey}>`
             });
         }
 
@@ -748,45 +718,10 @@ app.action('on_shift_engineer', async ({ ack, body, client }) => {
     );
 
     // --- ENRICH WITH REAL-TIME SLACK STATUS ---
-    // We need to fetch presence and custom status for each engineer
-    const enrichedEngineers = await Promise.all(finalEngineers.map(async (eng) => {
-        let statusText = "⚪ Offline/Unknown";
-        let statusEmoji = "";
-        let isOnline = false;
-
-        if (eng.slack_id && eng.slack_id !== "YOUR_SLACK_ID_HERE") {
-            try {
-                // 1. Get Presence (Active/Away)
-                const presenceReq = await client.users.getPresence({ user: eng.slack_id });
-                isOnline = (presenceReq.presence === 'active');
-
-                // 2. Get Custom Status (Meeting, Call, etc.)
-                const profileReq = await client.users.profile.get({ user: eng.slack_id });
-                const profile = profileReq.profile;
-
-                if (profile.status_text) {
-                    statusText = `${profile.status_emoji} ${profile.status_text}`;
-                    // If they have a custom status, we use that. 
-                    // But we also want to show if they are "Active" or "Away" alongside it?
-                    // User asked for "Call/Meet" etc. usually implies custom status.
-                    // Let's combine: "🟢 Active | 📅 In a Meeting"
-                    const onlineIcon = isOnline ? "🟢" : "⚪";
-                    statusText = `${onlineIcon} ${profile.status_emoji} ${profile.status_text}`;
-                } else {
-                    // No custom status, just show Online/Away
-                    statusText = isOnline ? "🟢 Active" : "⚪ Away";
-                }
-
-            } catch (error) {
-                console.error(`Failed to fetch status for ${eng.name}:`, error);
-                statusText = "❓ Status Unknown";
-            }
-        } else {
-            statusText = "⚠️ ID Missing";
-        }
-
-        return { ...eng, realTimeStatus: statusText };
-    }));
+    // User Request: Simplify Status. Only show 'Available' for engineers on shift.
+    const enrichedEngineers = finalEngineers.map(eng => {
+        return { ...eng, realTimeStatus: "🟢 Available" };
+    });
 
 
     let blocks = [];
