@@ -32,7 +32,6 @@
             "bot": [
                 "commands",
                 "chat:write",
-                "chat:write.public",
                 "users:read",
                 "users.profile:read",
                 "im:write"

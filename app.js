@@ -346,10 +346,9 @@ app.view('submit_ticket', async ({ ack, body, view, client }) => {
     if (ticketResult.success) {
         const ticketKey = ticketResult.key;
         try {
-            // Success: Send small Ephemeral Message (Visible only to user, no DM created)
-            await client.chat.postEphemeral({
-                channel: channelId,
-                user: user,
+            // Success: Send DM to user (Reliable, no special scope needed)
+            await client.chat.postMessage({
+                channel: user,
                 text: `✅ Ticket Submitted: ${ticketKey}`,
                 blocks: [
                     {
@@ -362,20 +361,19 @@ app.view('submit_ticket', async ({ ack, body, view, client }) => {
                 ]
             });
         } catch (error) {
-            console.error("Failed to send ephemeral success:", error);
+            console.error("Failed to send success DM:", error);
         }
 
     } else {
         const errorMessage = ticketResult.error || "Unknown Error";
         try {
-            // Error: Send small Ephemeral Message
-            await client.chat.postEphemeral({
-                channel: channelId,
-                user: user,
+            // Error: Send DM
+            await client.chat.postMessage({
+                channel: user,
                 text: `❌ Failed to create ticket. Error: ${errorMessage}`
             });
         } catch (error) {
-            console.error("Failed to send ephemeral error:", error);
+            console.error("Failed to send error DM:", error);
         }
     }
 });
