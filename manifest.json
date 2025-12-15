@@ -26,24 +26,12 @@
                 "should_escape": false
             }
         ]
-    },
-    "oauth_config": {
-        "scopes": {
-            "bot": [
-                "commands",
-                "chat:write",
-                "users:read",
-                "users.profile:read",
-                "im:write"
-            ]
-        }
-    },
     "settings": {
-        "interactivity": {
-            "is_enabled": true
-        },
-        "org_deploy_enabled": false,
-        "socket_mode_enabled": false,
-        "token_rotation_enabled": false
+            "interactivity": {
+                "is_enabled": true
+            },
+            "org_deploy_enabled": false,
+            "socket_mode_enabled": false,
+            "token_rotation_enabled": false
+        }
     }
-}

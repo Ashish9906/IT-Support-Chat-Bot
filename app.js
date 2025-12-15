@@ -8,7 +8,8 @@ const schedule = require('./schedule.json');
 // --- CONFIGURATION ---
 const ADMIN_USERS = ['U09V5BGMEEM']; // Add more IDs here if needed
 // Use the provided Mongo URI
-const MONGO_URI = "mongodb+srv://shshmattoo_db_user:bAqtM9PM4HDeOdYN@multifactorllpchatbot.afbprn2.mongodb.net/?appName=MULTIFACTORLLPCHATBOT";
+// Use the provided Mongo URI (Preferably from Env, fallback to hardcoded if necessary for legacy)
+const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://shshmattoo_db_user:bAqtM9PM4HDeOdYN@multifactorllpchatbot.afbprn2.mongodb.net/?appName=MULTIFACTORLLPCHATBOT";
 
 // --- DATABASE CONNECTION ---
 mongoose.connect(MONGO_URI)
