@@ -186,7 +186,7 @@ app.command('/it-help', async ({ ack, body, client }) => {
             callback_id: 'it_dashboard',
             title: {
                 type: 'plain_text',
-                text: 'IT Support Hub 🚀'
+                text: 'IT Support Hub'
             },
             blocks: [
                 {
@@ -209,7 +209,7 @@ app.command('/it-help', async ({ ack, body, client }) => {
                     type: 'section',
                     text: {
                         type: 'mrkdwn',
-                        text: "*👨‍💻 Find On-Shift Engineer*\nSee who is available right now for urgent help."
+                        text: "*Find On-Shift Engineer*\nSee who is available right now for urgent help."
                     },
                     accessory: {
                         type: 'button',
@@ -227,7 +227,7 @@ app.command('/it-help', async ({ ack, body, client }) => {
                     type: 'section',
                     text: {
                         type: 'mrkdwn',
-                        text: "*🎫 Raise a Jira Ticket*\nSubmit a formal request for hardware, software, or access issues."
+                        text: "*Raise a Jira Ticket*\nSubmit a formal request for hardware, software, or access issues."
                     },
                     accessory: {
                         type: 'button',
