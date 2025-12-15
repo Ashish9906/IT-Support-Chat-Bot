@@ -349,13 +349,13 @@ app.view('submit_ticket', async ({ ack, body, view, client }) => {
             // Success: Send DM to user (Reliable, no special scope needed)
             await client.chat.postMessage({
                 channel: user,
-                text: `✅ Ticket Submitted: ${ticketKey}`,
+                text: "✅ Ticket Submitted Successfully",
                 blocks: [
                     {
                         type: "section",
                         text: {
                             type: "mrkdwn",
-                            text: `✅ *Ticket Submitted*\nKey: <https://${JIRA_DOMAIN}/browse/${ticketKey}|${ticketKey}>`
+                            text: "✅ *Ticket Submitted Successfully*"
                         }
                     }
                 ]
